@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a579b3c8141ab6488207c07dfb02b2f, type: 3}
+  m_Name: "Karak\xF6y"
+  m_EditorClassIdentifier: 
+  tileName: "Karak\xF6y"
+  tileID: 8
+  tileType: 0
+  groupColor: Light Blue
+  price: 1000
+  rent: 60
+  fullSetRent: 120
+  houseRent: 900
+  hotelRent: 5500
+  houseCost: 500
+  hotelCost: 2500
