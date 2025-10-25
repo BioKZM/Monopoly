@@ -9,6 +9,10 @@ public class MoveToTileEffect : CardData
     public bool goToSpawn;
     public override void Execute(PlayerScript player)
     {
+        if (goToSpawn)
+        {
+            player.money += 2000;
+        }
         player.MoveTo(targetTileIndex, isLookingCurrentTile, isJail, goToSpawn);
     }
 }

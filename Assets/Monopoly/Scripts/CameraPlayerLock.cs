@@ -37,7 +37,7 @@ public class CameraPlayerLock : MonoBehaviour
     {
         // Oyuncunun yönünü kullanarak hedef açıyı belirle
         Vector3 forward = target.forward;
-        forward.y = 0; // yukarı yönü yok say
+        // forward.y = 0; // yukarı yönü yok say
         forward.Normalize();
 
         // Oyuncu +X yönüne bakıyorsa (sağa) → kamera arkadan çapraz bakmalı
@@ -45,7 +45,7 @@ public class CameraPlayerLock : MonoBehaviour
         float angle = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
 
         // Kamera açısını izometrik olacak şekilde ayarla (45° yukarıdan)
-        targetRotation = Quaternion.Euler(50f, angle + 60f, 0f);
+        targetRotation = Quaternion.Euler(45f, angle + 45f, 0f);
     }
     public void SetTarget(Transform newTarget)
     {

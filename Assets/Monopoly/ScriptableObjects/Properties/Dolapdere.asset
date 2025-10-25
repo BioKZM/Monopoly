@@ -17,9 +17,9 @@ MonoBehaviour:
   tileType: 0
   groupColor: Brown
   price: 600
-  rent: 40
-  fullSetRent: 80
+  rent: 200
+  fullSetRent: 400
   houseRent: 600
   hotelRent: 4500
-  houseCost: 500
+  houseCost: 1000
   hotelCost: 2500

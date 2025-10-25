@@ -10,7 +10,7 @@ public class TileRuntimeData
     public bool hasHouse = false;
     public bool hasHotel = false;
     
-    public int GetRent(int dice, bool hasFullSet)
+    public int GetRent(int dice, bool hasFullSet, int UoSCount = 0)
     {
         if (tileData is PropertyData property)
         {
@@ -26,7 +26,23 @@ public class TileRuntimeData
         {
             if (tileData.tileType == TileType.Station)
             {
-                return hasFullSet ? UoS.rent * 4 : UoS.rent;
+                // return hasFullSet ? UoS.rent * 4 : UoS.rent;
+                if (hasFullSet)
+                {
+                    return UoS.rent * 8;
+                }
+                else if (UoSCount == 3)
+                {
+                    return UoS.rent * 4;
+                }
+                else if (UoSCount == 2)
+                {
+                    return UoS.rent * 2;
+                }
+                else
+                {
+                    return UoS.rent;
+                }
             }
             else if (tileData.tileType == TileType.Utility)
             {

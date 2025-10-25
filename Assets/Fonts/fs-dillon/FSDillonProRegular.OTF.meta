@@ -1,0 +1,26 @@
+fileFormatVersion: 2
+guid: 34263b8d317636b4ba5ace87c077929c
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - FS Dillon
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 2711125bbc7f54e48a7332e56ba7c745, type: 3}
+  - {fileID: 12800000, guid: 2728d113f9f44914d84195cb2d70f024, type: 3}
+  - {fileID: 12800000, guid: 353c49ad6c2bb724dbcfe48278a1dadc, type: 3}
+  - {fileID: 12800000, guid: df6e98f79691f8743a47236e0cc823d7, type: 3}
+  - {fileID: 12800000, guid: 618a59a88ad2c934ea10b6f04c615ee6, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

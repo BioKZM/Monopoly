@@ -15,5 +15,6 @@ MonoBehaviour:
   tileName: 13
   tileID: 0
   tileType: 0
-  amount: 250
+  amount: 3000
   payForBuildings: 0
+  collectMoney: 0

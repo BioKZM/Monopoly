@@ -6,6 +6,7 @@ public class GainMoneyEffect : CardData
 {
     public int amount;
     public bool payForBuildings;
+    public bool collectMoney;
 
     public override void Execute(PlayerScript player)
     {
@@ -26,7 +27,18 @@ public class GainMoneyEffect : CardData
                     totalHouseAmount++;
                 }
             }
-            player.money -= (totalHouseAmount * 250) + (totalHotelAmount * 1000);
+            player.money -= (totalHouseAmount * 500) + (totalHotelAmount * 1000);
+        }
+        else if (collectMoney)
+        {
+            player.money += amount * GameManager.Instance.players.Count;
+            foreach(var p in GameManager.Instance.players)
+            {
+                if (p != player)
+                {
+                    p.money -= amount;
+                }
+            }
         }
         else
         {

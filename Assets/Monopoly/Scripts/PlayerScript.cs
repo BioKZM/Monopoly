@@ -1,6 +1,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,12 +19,14 @@ public class PlayerScript : MonoBehaviour
     public bool isInJail = false;
     public int jailRollCount = 0;
     public bool didPlayerTakeMoneyOnStart = true;
+    public string playerName;
 
 
     void Start()
     {
 
         animator = transform.GetComponent<Animator>();
+        playerName = gameObject.name;
 
     }
 

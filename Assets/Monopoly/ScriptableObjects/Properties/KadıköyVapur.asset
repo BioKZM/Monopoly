@@ -16,5 +16,5 @@ MonoBehaviour:
   tileID: 15
   tileType: 2
   price: 2000
-  rent: 250
+  rent: 2500
   groupColor: Railroad

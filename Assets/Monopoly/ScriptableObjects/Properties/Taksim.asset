@@ -17,9 +17,9 @@ MonoBehaviour:
   tileType: 0
   groupColor: Pink
   price: 1600
-  rent: 120
-  fullSetRent: 240
+  rent: 1200
+  fullSetRent: 2400
   houseRent: 1800
   hotelRent: 9000
-  houseCost: 1000
+  houseCost: 2000
   hotelCost: 5000

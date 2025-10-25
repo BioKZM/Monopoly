@@ -10,9 +10,13 @@ public struct UIElements
     public Button buyHouseButton;
     public Button buyHotelButton;
     public Button passButton;
+    public Button drawerButton;
+    public Button closeDetailButton;
     public Transform ownedCardsPanel;
     public CanvasGroup rollDiceGroup;
     public CanvasGroup propertyActionGroup;
     public CanvasGroup buildGroup;
+    public CanvasGroup drawerGroup;
+    public CanvasGroup detailPanel;
     public List<GameObject> playerInfoPanels;
 } 

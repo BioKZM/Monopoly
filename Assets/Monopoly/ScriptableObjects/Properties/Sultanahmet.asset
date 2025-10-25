@@ -17,9 +17,9 @@ MonoBehaviour:
   tileType: 0
   groupColor: Light Blue
   price: 1000
-  rent: 60
-  fullSetRent: 120
+  rent: 600
+  fullSetRent: 1200
   houseRent: 900
   hotelRent: 5500
-  houseCost: 500
+  houseCost: 1000
   hotelCost: 2500

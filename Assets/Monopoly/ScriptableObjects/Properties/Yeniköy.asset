@@ -17,9 +17,9 @@ MonoBehaviour:
   tileType: 0
   groupColor: Blue
   price: 4000
-  rent: 500
-  fullSetRent: 1000
+  rent: 5000
+  fullSetRent: 10000
   houseRent: 6000
   hotelRent: 20000
-  houseCost: 2000
+  houseCost: 4000
   hotelCost: 10000
