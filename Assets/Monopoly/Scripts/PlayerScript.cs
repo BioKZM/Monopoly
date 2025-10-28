@@ -132,7 +132,8 @@ public class PlayerScript : MonoBehaviour
     {
         if (money < 0)
         {
-            BankruptcyManager.Instance.InitiateBankruptcy(this);
+            Debug.Log(this);
+            GameManager.Instance.InitiateBankruptcy(this);
         }
 
     }

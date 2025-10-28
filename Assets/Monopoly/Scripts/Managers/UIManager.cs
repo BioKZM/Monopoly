@@ -14,6 +14,7 @@ public class UIManager : MonoBehaviour
     public CanvasGroup buildGroup;
     public CanvasGroup drawerGroup;
     public CanvasGroup detailPanel;
+    public GameObject bankruptcyCard;
     private bool isDrawerOpen = false;
     public List<GameObject> playerInfoPanels = new List<GameObject>();
 
@@ -27,6 +28,7 @@ public class UIManager : MonoBehaviour
         playerInfoPanels = uiElements.playerInfoPanels;
         drawerGroup = uiElements.drawerGroup;
         detailPanel = uiElements.detailPanel;
+        bankruptcyCard = uiElements.bankruptcyCard;
 
 
 
@@ -106,7 +108,15 @@ public class UIManager : MonoBehaviour
         }
     }
     
-
+    public void CloseDetailPanel()
+    {
+        detailPanel.gameObject.SetActive(false);
+        for (int x = 0; x < detailPanel.transform.childCount;x++)
+        {
+            if (x == 0) continue;
+            detailPanel.transform.GetChild(x).gameObject.SetActive(false);
+        }
+    }
 
     public void ShowRollDice()
     {
@@ -132,7 +142,7 @@ public class UIManager : MonoBehaviour
         var textComponent = card.transform.Find("CardText").GetComponent<TMPro.TextMeshProUGUI>();
         textComponent.text = cardText;
     }
-    
+
 
     public void SetGroup(CanvasGroup activeGroup, bool hasHouse = false, bool hasHotel = false)
     {
@@ -154,12 +164,22 @@ public class UIManager : MonoBehaviour
         {
             buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
             buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
-            
+
         }
         else
         {
             buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
             buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+        }
+    }
+    
+    public void RemovePlayerInfoPanel(int index)
+    {
+        if (index >= 0 && index < playerInfoPanels.Count)
+        {
+            GameObject panelToRemove = playerInfoPanels[index];
+            playerInfoPanels.RemoveAt(index);
+            Destroy(panelToRemove);
         }
     }
 

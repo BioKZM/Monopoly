@@ -19,4 +19,5 @@ public struct UIElements
     public CanvasGroup drawerGroup;
     public CanvasGroup detailPanel;
     public List<GameObject> playerInfoPanels;
+    public GameObject bankruptcyCard;
 } 

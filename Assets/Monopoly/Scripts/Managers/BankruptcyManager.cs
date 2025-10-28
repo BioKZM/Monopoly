@@ -1,11 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using TMPro;
+using UnityEngine.UI;
 
 public class BankruptcyManager : MonoBehaviour
 {
     public static BankruptcyManager Instance { get; private set; }
     public PlayerScript bankruptedPlayer { get; private set; }
+    
     
     private void Awake()
     {
@@ -21,13 +24,32 @@ public class BankruptcyManager : MonoBehaviour
         var bankruptcyPanel = detailPanel.transform.Find("BankruptcyPanel");
         bankruptcyPanel.gameObject.SetActive(true);
         var contentPanel = bankruptcyPanel.transform.Find("Scroll View/Viewport/Content");
-        // var bankruptcyCardPrefab = 
-        
+        var bankruptcyCardPrefab = GameManager.Instance.uiManager.bankruptcyCard;
+        // GameObject prefab = Resources.Load<GameObject>("Assets/Monopoly/Prefabs/BankruptcyCard.prefab");
+        foreach (var tileName in bankruptedPlayer.ownedTiles)
+        {
+            var tile = GameManager.Instance.propertyManager.tileRuntimeList.Find(t => t.tileData.tileName == tileName);
+            if (tile != null)
+            {
+                Color tileColor = GameManager.Instance.propertyManager.GetTileColor(tile.tileData);
+                int mortgageValue = CalculateMortgageValue(tile);
+                int currentValue = CalculateCurrentValue(tile);
+                GameObject instance = Instantiate(bankruptcyCardPrefab, contentPanel, false);
+                instance.transform.Find("Panel").GetComponent<Image>().color = tileColor;
+                GameObject tilePanel = instance.transform.Find("Panel/TileName").gameObject;
+                tilePanel.GetComponent<TextMeshProUGUI>().text = tile.tileData.tileName;
+                Transform valuePanel = instance.transform.Find("ValuePanel");
 
-        // mevcut bankruptcy mantığı...
+                valuePanel.Find("OGValue/TileValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "TL";
+                valuePanel.Find("MGValue/MortgageValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "TL";
+                var sellButton = instance.transform.Find("SellButton").GetComponent<Button>();
+                sellButton.onClick.AddListener(() => SellProperty(tile, sellButton));
+            }
+        }
+        bankruptcyPanel.Find("ConfirmButton").GetComponent<Button>().onClick.AddListener(() => CheckBankruptcyResolution());
     }
 
-    public void SellProperty(TileRuntimeData tile)
+    public void SellProperty(TileRuntimeData tile, Button sellButton=null)
     {
         // Arsayı oyuncudan çıkar
         bankruptedPlayer.ownedTiles.Remove(tile.tileData.tileName);
@@ -59,6 +81,10 @@ public class BankruptcyManager : MonoBehaviour
 
         // UI'ı güncelle
         GameManager.Instance.uiManager.UpdateUI();
+        if (sellButton != null)
+        {
+            DeleteCardFromBankruptcyUI(sellButton);
+        }
         // UpdatePlayerMoneyDisplay();
 
         // Eğer oyuncu yeterli parayı topladıysa, bankruptcy durumundan çık
@@ -67,13 +93,9 @@ public class BankruptcyManager : MonoBehaviour
 
     private void CheckBankruptcyResolution()
     {
-        if (bankruptedPlayer.money >= 0)
+        if (bankruptedPlayer.money < 0)
         {
-            // Bankruptcy durumundan çık
-            // GameManager.Instance.uiManager.CloseBankruptcyUI();
-        }
-        else
-        {
+
             // Oyuncunun kalan arsalarını sat
             foreach (string tileName in bankruptedPlayer.ownedTiles)
             {
@@ -85,11 +107,15 @@ public class BankruptcyManager : MonoBehaviour
             }
 
             // Oyuncuyu oyundan çıkar
-            GameManager.Instance.players.Remove(bankruptedPlayer);
-            Destroy(bankruptedPlayer.gameObject);
+            GameManager.Instance.RemovePlayerFromGame(bankruptedPlayer);
+            // GameManager.Instance.players.Remove(bankruptedPlayer);
+            // Destroy(bankruptedPlayer.gameObject);
             // GameManager.Instance.uiManager.CloseBankruptcyUI();
         }
+        GameManager.Instance.uiManager.CloseDetailPanel();
+        
     }
+    
 
     
 
@@ -113,5 +139,9 @@ public class BankruptcyManager : MonoBehaviour
         }
         return currentValue;
 
+    }
+    private void DeleteCardFromBankruptcyUI(Button sellButton)
+    {
+        Destroy(sellButton.transform.parent.gameObject);
     }
 }

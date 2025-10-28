@@ -90,12 +90,6 @@ public class TurnManager : MonoBehaviour
             die1 = Random.Range(1, 7);
             die2 = Random.Range(1, 7);
             dice = die1 + die2;
-            // dice = 2;
-            // dice = 3;
-            // if (currentPlayer.currentTileIndex == 0)
-            // {
-            //     dice = 30;
-            // }
         }
     }
     

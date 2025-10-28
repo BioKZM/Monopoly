@@ -12,30 +12,26 @@ public class PropertyCard : MonoBehaviour
 
     private void Awake()
     {
-        // gameObject.onClick.AddListener(OnCardClick);
-        
-        currentValueText = transform.Find("CurrentValuePanel/CurrentValue").GetComponent<TextMeshProUGUI>();
-        mortgageValueText = transform.Find("MortgageValuePanel/MortgageValue").GetComponent<TextMeshProUGUI>();
     }
 
-    public void Initialize(TileRuntimeData tile)
-    {
-        tileData = tile;
-        UpdateUI();
-    }
+    // public void Initialize(TileRuntimeData tile)
+    // {
+    //     tileData = tile;
+    //     UpdateUI();
+    // }
 
-    private void UpdateUI()
-    {
-        int currentValue = CalculateCurrentValue();
-        currentValueText.text = "CV: " + currentValue.ToString();
-        mortgageValueText.text = "MV: " + (currentValue * 70 / 100).ToString();
-    }
+    // private void UpdateUI()
+    // {
+    //     int currentValue = CalculateCurrentValue();
+    //     currentValueText.text = "CV: " + currentValue.ToString();
+    //     mortgageValueText.text = "MV: " + (currentValue * 70 / 100).ToString();
+    // }
 
-    private void OnCardClick()
-    {
-        // Animasyon ekleyebilirsiniz
-        SellProperty();
-    }
+    // private void OnCardClick()
+    // {
+    //     // Animasyon ekleyebilirsiniz
+    //     SellProperty();
+    // }
 
     private void SellProperty()
     {

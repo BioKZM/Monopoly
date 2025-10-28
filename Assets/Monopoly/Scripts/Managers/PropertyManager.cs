@@ -53,6 +53,35 @@ public class PropertyManager : MonoBehaviour
             _ => 0,
         };
     }
+    public Color GetTileColor(TileData tileData)
+    {
+        if (tileData is PropertyData propertyData)
+        {
+            return propertyData.groupColor switch
+            {
+                "Brown" => new Color(0.1764706f, 0.01960784f, 0.01568628f),
+                "Light Blue" => new Color(0.5686275f, 0.7450981f, 0.8196079f),
+                "Pink" => new Color(0.8117648f, 0.01568628f, 0.6784314f),
+                "Orange" => new Color(0.8039216f, 0.5803922f, 0.007843138f),
+                "Red" => new Color(0.8078432f, 0.07843138f, 0.07058824f),
+                "Yellow" => new Color(0.509434f, 0.4867925f, 0.0f),
+                "Green" => new Color(0.1278409f, 0.5f, 0f),
+                "Blue" => new Color(0.02745098f, 0.05490196f, 0.2588235f),
+
+                _ => Color.white,
+            };
+        }
+        else if (tileData is UoSData uoSData)
+        {
+            return uoSData.groupColor switch
+            {
+                "Railroad" => new Color(0.0f, 0.0f, 0.0f),
+                "Utility" => new Color(0.1607843f, 0.1607843f, 0.1607843f),
+                _ => Color.white,
+            };
+        }
+        return Color.white;
+    }
 
     public bool IsTilePurchasable(TileRuntimeData tile)
     {
@@ -80,7 +109,17 @@ public class PropertyManager : MonoBehaviour
 
         FinalizePurchase(currentTile);
     }
-
+    public void GiveAllTilesToPlayer(PlayerScript newOwner)
+    {
+        foreach (var tile in tileRuntimeList)
+        {
+            if (!new[] { 0, 2, 4, 7, 10, 17, 20, 22, 30, 33, 36, 38}.Contains(tile.tileData.tileID))
+            {
+                tile.owner = newOwner;
+                newOwner.ownedTiles.Add(tile.tileData.tileName);
+            }
+        }
+    }
 
     private void ProcessPropertyPurchase(PropertyData property, int buildings)
     {

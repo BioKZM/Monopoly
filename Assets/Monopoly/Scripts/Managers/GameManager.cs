@@ -19,6 +19,7 @@ public class GameManager : MonoBehaviour
     public PropertyManager propertyManager;
     public UIManager uiManager;
     public CardManager cardManager;
+    public BankruptcyManager bankruptcyManager;
     #endregion
 
     #region Game Data
@@ -88,12 +89,14 @@ public class GameManager : MonoBehaviour
         if (propertyManager == null) propertyManager = GetComponent<PropertyManager>();
         if (uiManager == null) uiManager = GetComponent<UIManager>();
         if (cardManager == null) cardManager = GetComponent<CardManager>();
+        if (bankruptcyManager == null) bankruptcyManager = GetComponent<BankruptcyManager>();
 
         // Eğer manager bileşenleri yoksa, otomatik olarak ekle
         if (turnManager == null) turnManager = gameObject.AddComponent<TurnManager>();
         if (propertyManager == null) propertyManager = gameObject.AddComponent<PropertyManager>();
         if (uiManager == null) uiManager = gameObject.AddComponent<UIManager>();
         if (cardManager == null) cardManager = gameObject.AddComponent<CardManager>();
+        if (bankruptcyManager == null) bankruptcyManager = gameObject.AddComponent<BankruptcyManager>();
     }
 
     private void InitializeGame()
@@ -205,9 +208,13 @@ public class GameManager : MonoBehaviour
     {
         cardManager.HandleChanceOrCommunityTile(currentTile);
     }
-    public void SetupCardUI(string cardText, bool isChanceCard )
+    public void SetupCardUI(string cardText, bool isChanceCard)
     {
         uiManager.SetupCardUI(cardText, isChanceCard);
+    }
+    public void InitiateBankruptcy(PlayerScript bankruptedPlayer)
+    {
+        bankruptcyManager.InitiateBankruptcy(bankruptedPlayer);
     }
 
     // public void AddPropertyCardToUI(string tileName)
@@ -231,6 +238,7 @@ public class GameManager : MonoBehaviour
             drawerGroup = drawerGroup,
             drawerButton = drawerButton,
             detailPanel = detailPanel,
+            bankruptcyCard = bankruptcyCard
 
         };
     }
@@ -248,6 +256,18 @@ public class GameManager : MonoBehaviour
         return propertyManager.GetRuntimeTileByName(tileName);
     }
     #endregion
+    public Color GetTileColor(TileData tileData)
+    {
+        return propertyManager.GetTileColor(tileData);
+    }
+    public void RemovePlayerFromGame(PlayerScript player)
+    {
+        var index = players.FindIndex(p => p == player);
+        players.Remove(player);
+        Destroy(player.gameObject);
+        uiManager.RemovePlayerInfoPanel(index);
+        turnManager.EndTurn();
+    }
 
     #region Debug
     private void DebugGameState()
@@ -268,6 +288,14 @@ public class GameManager : MonoBehaviour
         {
             Debug.Log(GetCurrentPlayer().money);
             Debug.Log(GetCurrentPlayer().name);
+        }
+        if (Input.GetKeyDown(KeyCode.Keypad1))
+        {
+            propertyManager.GiveAllTilesToPlayer(GetCurrentPlayer());
+        }
+        if (Input.GetKeyDown(KeyCode.Keypad2))
+        {
+            GetCurrentPlayer().money -= 9999999;
         }
     }
     #endregion
