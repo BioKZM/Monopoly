@@ -41,9 +41,9 @@ public class UIManager : MonoBehaviour
             playerInfoPanels[x].transform.Find("InfoPanel").Find("PlayerMoney").Find("PNText").GetComponent<TextMeshProUGUI>().text = FormatMoney(players[x].money);
         }
     }
-    public string FormatMoney(int amount)
+    private string FormatMoney(int amount)
     {
-        return string.Format("{0:N0}TL", amount);
+        return string.Format("{0:N0}₺", amount);
     }
    
     public void UpdateUI()
@@ -142,6 +142,32 @@ public class UIManager : MonoBehaviour
         var textComponent = card.transform.Find("CardText").GetComponent<TMPro.TextMeshProUGUI>();
         textComponent.text = cardText;
     }
+    public void RemovePlayerInfoPanel(int index)
+    {
+        if (index >= 0 && index < playerInfoPanels.Count)
+        {
+            GameObject panelToRemove = playerInfoPanels[index];
+            playerInfoPanels.RemoveAt(index);
+            Destroy(panelToRemove);
+        }
+    }
+    public void SetWinnerUI(string playerName)
+    {
+        var uiElements = GameManager.Instance.GetUIElements();
+        var panel = uiElements.detailPanel.gameObject;
+        panel.SetActive(true);
+        var winnerPanel = panel.transform.Find("WinPanel").gameObject;
+        winnerPanel.SetActive(true);
+        var winnerCard = winnerPanel.transform.Find("WinnerCard").gameObject;
+        var textComponent = winnerCard.transform.Find("WinnerName").GetComponent<TextMeshProUGUI>();
+        textComponent.text = playerName;
+    }
+
+
+
+
+
+
 
 
     public void SetGroup(CanvasGroup activeGroup, bool hasHouse = false, bool hasHotel = false)
@@ -160,12 +186,12 @@ public class UIManager : MonoBehaviour
             buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
             buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = true;
         }
-        else if (hasHotel)
-        {
-            buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
-            buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+        // else if (hasHotel)
+        // {
+        //     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+        //     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
 
-        }
+        // }
         else
         {
             buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
@@ -173,15 +199,7 @@ public class UIManager : MonoBehaviour
         }
     }
     
-    public void RemovePlayerInfoPanel(int index)
-    {
-        if (index >= 0 && index < playerInfoPanels.Count)
-        {
-            GameObject panelToRemove = playerInfoPanels[index];
-            playerInfoPanels.RemoveAt(index);
-            Destroy(panelToRemove);
-        }
-    }
+    
 
     public void AddButtonListeners()
     {

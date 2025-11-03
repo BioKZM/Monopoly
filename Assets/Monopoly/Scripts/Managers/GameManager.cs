@@ -20,6 +20,7 @@ public class GameManager : MonoBehaviour
     public UIManager uiManager;
     public CardManager cardManager;
     public BankruptcyManager bankruptcyManager;
+    public EventManager eventManager;
     #endregion
 
     #region Game Data
@@ -46,6 +47,11 @@ public class GameManager : MonoBehaviour
     public CanvasGroup buildGroup;
     public GameObject bankruptcyCard;
     public List<GameObject> playerInfoPanels = new List<GameObject>();
+    public int handDeterminedDice_;
+    public TMP_FontAsset messageFont;
+    public int messageFontSize = 36;
+    public RectTransform bannerRect;
+    public int maxQueue = 99;
     #endregion
 
     #region Unity Lifecycle Methods
@@ -90,6 +96,7 @@ public class GameManager : MonoBehaviour
         if (uiManager == null) uiManager = GetComponent<UIManager>();
         if (cardManager == null) cardManager = GetComponent<CardManager>();
         if (bankruptcyManager == null) bankruptcyManager = GetComponent<BankruptcyManager>();
+        if (eventManager == null) eventManager = GetComponent<EventManager>();
 
         // Eğer manager bileşenleri yoksa, otomatik olarak ekle
         if (turnManager == null) turnManager = gameObject.AddComponent<TurnManager>();
@@ -97,6 +104,7 @@ public class GameManager : MonoBehaviour
         if (uiManager == null) uiManager = gameObject.AddComponent<UIManager>();
         if (cardManager == null) cardManager = gameObject.AddComponent<CardManager>();
         if (bankruptcyManager == null) bankruptcyManager = gameObject.AddComponent<BankruptcyManager>();
+        if (eventManager == null) eventManager = gameObject.AddComponent<EventManager>();
     }
 
     private void InitializeGame()
@@ -216,11 +224,6 @@ public class GameManager : MonoBehaviour
     {
         bankruptcyManager.InitiateBankruptcy(bankruptedPlayer);
     }
-
-    // public void AddPropertyCardToUI(string tileName)
-    // {
-    //     uiManager.AddPropertyCardToUI(tileName);
-    // }
     
     public UIElements GetUIElements()
     {
@@ -260,6 +263,49 @@ public class GameManager : MonoBehaviour
     {
         return propertyManager.GetTileColor(tileData);
     }
+
+    public void ShowPurchase(PlayerScript buyer, TileRuntimeData tile)
+    {
+        eventManager.ShowPurchase(buyer, tile);
+    }
+    public void ShowSelling(PlayerScript seller, TileRuntimeData tile)
+    {
+        eventManager.ShowSelling(seller, tile);
+    }
+
+    public void ShowRentPayment(PlayerScript payer, PlayerScript payee, TileRuntimeData tile, int amount)
+    {
+        eventManager.ShowRentPayment(payer, payee, tile, amount);
+    }
+
+    public void ShowGoToJail(PlayerScript player)
+    {
+        eventManager.ShowGoToJail(player);
+    }
+
+    public void ShowBankrupt(PlayerScript player)
+    {
+        eventManager.ShowBankrupt(player);
+    }
+    public void ShowBuild(PlayerScript player, TileRuntimeData tile, string buildingName)
+    {
+        eventManager.ShowBuild(player, tile, buildingName);
+    }
+    public void ShowTaxPayment(PlayerScript player, TileRuntimeData tile, int amount)
+    {
+        eventManager.ShowTaxPayment(player, tile, amount);
+    }
+
+    public void ShowCustom(string template, PlayerScript? player = null, TileRuntimeData? tile = null, string? building = null, PlayerScript? player2 = null)
+    {
+        eventManager.ShowCustom(template, player, tile, building, player2);
+    }
+    
+
+
+
+
+
     public void RemovePlayerFromGame(PlayerScript player)
     {
         var index = players.FindIndex(p => p == player);
@@ -267,6 +313,13 @@ public class GameManager : MonoBehaviour
         Destroy(player.gameObject);
         uiManager.RemovePlayerInfoPanel(index);
         turnManager.EndTurn();
+    }
+
+    public void HandleWin(PlayerScript player)
+    {
+        Time.timeScale = 0;
+        uiManager.SetWinnerUI(player.playerName);
+        
     }
 
     #region Debug
@@ -296,6 +349,10 @@ public class GameManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Keypad2))
         {
             GetCurrentPlayer().money -= 9999999;
+        }
+        if (Input.GetKeyDown(KeyCode.Keypad3))
+        {
+            turnManager.handDeterminedDice = handDeterminedDice_;
         }
     }
     #endregion

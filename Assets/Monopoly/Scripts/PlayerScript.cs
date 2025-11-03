@@ -19,6 +19,7 @@ public class PlayerScript : MonoBehaviour
     public bool isInJail = false;
     public int jailRollCount = 0;
     public bool didPlayerTakeMoneyOnStart = true;
+    public bool isBankrupt = false;
     public string playerName;
 
 
@@ -127,13 +128,14 @@ public class PlayerScript : MonoBehaviour
         isInJail = true;
         transform.position = tiles[currentTileIndex].transform.position + new Vector3(0, 0.5f, 0);
         RotatePlayer();
+        GameManager.Instance.ShowGoToJail(this);
     }
     public void CheckBankruptcy()
     {
         if (money < 0)
         {
-            Debug.Log(this);
             GameManager.Instance.InitiateBankruptcy(this);
+            isBankrupt = true;
         }
 
     }

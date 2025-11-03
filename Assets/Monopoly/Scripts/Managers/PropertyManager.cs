@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -30,17 +31,17 @@ public class PropertyManager : MonoBehaviour
         return propertiesInColorGroup.Count == groupCount &&
                propertiesInColorGroup.All(tile => tile.owner == player);
     }
-    public int CountUoSTiles(PlayerScript player, string colorGroup)
-    {
-        var groupCount = GetColorGroupCount(colorGroup);
-        var propertiesInColorGroup = tileRuntimeList
-            .Where(tile => tile.tileData is PropertyData property && property.groupColor == colorGroup)
-            .ToList();
+    // public int CountUoSTiles(PlayerScript player, string colorGroup)
+    // {
+    //     var groupCount = GetColorGroupCount(colorGroup);
+    //     var propertiesInColorGroup = tileRuntimeList
+    //         .Where(tile => tile.tileData is PropertyData property && property.groupColor == colorGroup)
+    //         .ToList();
 
-        // return propertiesInColorGroup.Count == groupCount &&
-        //        propertiesInColorGroup.All(tile => tile.owner == player);
-        return propertiesInColorGroup.Count(tile => tile.owner == player);
-    }
+    //     // return propertiesInColorGroup.Count == groupCount &&
+    //     //        propertiesInColorGroup.All(tile => tile.owner == player);
+    //     return propertiesInColorGroup.Count(tile => tile.owner == player);
+    // }
 
     private int GetColorGroupCount(string colorGroup)
     {
@@ -51,6 +52,35 @@ public class PropertyManager : MonoBehaviour
             "Railroad" => 4,
             "Utility" => 2,
             _ => 0,
+        };
+    }
+    public List<string> GetAllColorGroups()
+    {
+        HashSet<string> colorGroups = new HashSet<string>
+        {
+            "Brown",
+            "Light Blue",
+            "Pink",
+            "Orange",
+            "Red",
+            "Yellow",
+            "Green",
+            "Blue",
+            "Railroad",
+            "Utility",
+        };
+
+        return colorGroups.ToList();
+    }
+
+    public List<List<int>> GetAllRows()
+    {
+        return new List<List<int>>
+        {
+            new List<int> {1, 3, 5, 6, 8, 9}, 
+            new List<int> {11, 12, 13, 14, 15, 16, 18, 19},
+            new List<int> {21,23, 24, 25, 26, 27, 28, 29},
+            new List<int> {31, 32, 34, 35, 37, 39},
         };
     }
     public Color GetTileColor(TileData tileData)
@@ -68,7 +98,7 @@ public class PropertyManager : MonoBehaviour
                 "Green" => new Color(0.1278409f, 0.5f, 0f),
                 "Blue" => new Color(0.02745098f, 0.05490196f, 0.2588235f),
 
-                _ => Color.white,
+                _ => new Color32(0xA9, 0xA9, 0xA9, 255)
             };
         }
         else if (tileData is UoSData uoSData)
@@ -77,10 +107,19 @@ public class PropertyManager : MonoBehaviour
             {
                 "Railroad" => new Color(0.0f, 0.0f, 0.0f),
                 "Utility" => new Color(0.1607843f, 0.1607843f, 0.1607843f),
-                _ => Color.white,
+                _ => new Color32(0xA9, 0xA9, 0xA9, 255)
             };
         }
-        return Color.white;
+        else if (tileData is TaxData)
+        {   
+            return tileData.tileName switch
+            {
+                "GelirVergisi" => new Color32(0x00, 0x50, 0x30, 255),
+                "LüksVergisi" => new Color32(0x00, 0x55, 0x6C, 255),
+                _ => new Color32(0xA9, 0xA9, 0xA9, 255)
+            };
+        }
+        return Color.black;
     }
 
     public bool IsTilePurchasable(TileRuntimeData tile)
@@ -100,11 +139,11 @@ public class PropertyManager : MonoBehaviour
 
         if (currentTile.tileData is PropertyData property)
         {
-            ProcessPropertyPurchase(property, buildings);
+            ProcessPropertyPurchase(property, buildings, currentTile);
         }
         else if (currentTile.tileData is UoSData uos)
         {
-            ProcessUoSPurchase(uos);
+            ProcessUoSPurchase(uos,currentTile);
         }
 
         FinalizePurchase(currentTile);
@@ -121,29 +160,34 @@ public class PropertyManager : MonoBehaviour
         }
     }
 
-    private void ProcessPropertyPurchase(PropertyData property, int buildings)
+    private void ProcessPropertyPurchase(PropertyData property, int buildings, TileRuntimeData currentTile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+        // TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
         currentPlayer.money -= property.price;
+        GameManager.Instance.eventManager.ShowPurchase(currentPlayer, currentTile);
         if (buildings == 1)
         {
+            GameManager.Instance.ShowBuild(currentPlayer, currentTile, "EV");
             currentPlayer.money -= property.houseCost;
         }
         else if (buildings == 2)
         {
+            GameManager.Instance.ShowBuild(currentPlayer, currentTile, "OTEL");
             currentPlayer.money -= property.hotelCost;
         }
 
-        TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
+        // TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
         currentTile.hasHouse = buildings == 1;
         currentTile.hasHotel = buildings == 2;
         PlaceBuildings(propertyTiles[currentPlayer.currentTileIndex], buildings);
     }
 
-    private void ProcessUoSPurchase(UoSData uos)
+    private void ProcessUoSPurchase(UoSData uos, TileRuntimeData currentTile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
         currentPlayer.money -= uos.price;
+        GameManager.Instance.eventManager.ShowPurchase(currentPlayer, currentTile);
     }
 
     private void FinalizePurchase(TileRuntimeData currentTile)

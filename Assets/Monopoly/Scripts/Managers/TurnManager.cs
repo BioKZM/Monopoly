@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
+using UnityEngine.XR;
 
 public class TurnManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class TurnManager : MonoBehaviour
     private int die1;
     private int die2;
     private int dice;
+    public int handDeterminedDice;
     #endregion
 
     #region References
@@ -26,7 +28,6 @@ public class TurnManager : MonoBehaviour
         var uiElements = GameManager.Instance.GetUIElements();
         uiElements.rollDiceButton.enabled = true;
         GameManager.Instance.SetGroup(uiElements.rollDiceGroup);
-        // currentPlayer.UpdateOwnedTilesUI();
     }
 
     public void OnRollDice()
@@ -40,6 +41,7 @@ public class TurnManager : MonoBehaviour
     {
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
         GameManager.Instance.UpdateUI();
+        CheckWinConditions();
         StartTurn();
     }
     #endregion
@@ -52,6 +54,7 @@ public class TurnManager : MonoBehaviour
         {
             yield return MovePlayer();
             yield return HandleTileAction();
+            yield return new WaitUntil(() => !currentPlayer.isBankrupt);
             EndTurn();
         }
     }
@@ -90,6 +93,13 @@ public class TurnManager : MonoBehaviour
             die1 = Random.Range(1, 7);
             die2 = Random.Range(1, 7);
             dice = die1 + die2;
+            if (handDeterminedDice > 0)
+            {
+                dice = handDeterminedDice;
+                // handDeterminedDice = 0;
+                return;
+            }
+            
         }
     }
     
@@ -97,8 +107,8 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator MovePlayer()
     {
-        yield return players[currentPlayerIndex].MoveCoroutine(dice);
-        while (players[currentPlayerIndex].isMoving)
+        yield return currentPlayer.MoveCoroutine(dice);
+        while (currentPlayer.isMoving)
         {
             yield return null;
         }
@@ -120,7 +130,6 @@ public class TurnManager : MonoBehaviour
         if (currentTile.owner != null && currentTile.owner != currentPlayer)
         {
             GameManager.Instance.HandleButtonStates(null);
-            Debug.Log($"{currentPlayer.name} pays rent to {currentTile.owner.name}");
             HandleRentPayment(currentTile);
         }
         else if (GameManager.Instance.IsTilePurchasable(currentTile) || currentTile.owner == currentPlayer)
@@ -132,9 +141,16 @@ public class TurnManager : MonoBehaviour
         {
             GameManager.Instance.HandleChanceOrCommunityTile(currentTile);
         }
+        else if (tileType == TileType.Tax)
+        {
+            var price = currentTile.GetRent(dice, false);
+            currentPlayer.money -= price;
+            GameManager.Instance.ShowTaxPayment(currentPlayer, currentTile, price);
+        }
         else if (tileType == TileType.GoToJail)
         {
             currentPlayer.GoToJail();
+            
         }
         else
         {
@@ -146,11 +162,6 @@ public class TurnManager : MonoBehaviour
 
     private void HandleRentPayment(TileRuntimeData currentTile)
     {
-        // Debug.Log($"Rent to pay: {currentTile.GetRent(dice, false)}");
-        // Debug.Log($"Current Player Money before rent: {currentPlayer.money}");
-        // Debug.Log($"Owner Money before rent: {currentTile.owner.money}");
-        // Debug.Log($"Current Tile Owner: {currentTile.owner.name}");
-        // Debug.Log($"Current Tile Name: {currentTile.tileData.tileName}");
         bool hasFullSet = false;
         if (currentTile.tileData is PropertyData property)
         {
@@ -159,9 +170,7 @@ public class TurnManager : MonoBehaviour
         int rent = currentTile.GetRent(dice, hasFullSet);
         currentPlayer.money -= rent;
         currentTile.owner.money += rent;
-        // Debug.Log(hasFullSet ? "Full set owned by landlord." : "No full set owned by landlord.");
-        // Debug.Log($"Current Player Money after rent: {currentPlayer.money}");
-        // Debug.Log($"Owner Money after rent: {currentTile.owner.money}");
+        GameManager.Instance.ShowRentPayment(currentPlayer, currentTile.owner, currentTile, rent);
     }
 
     private IEnumerator HandlePurchaseOption()
@@ -169,7 +178,82 @@ public class TurnManager : MonoBehaviour
         currentPlayer.hasMadeDecision = false;
         yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
     }
+
+
+    private void CheckWinConditions()
+    {
+        if (CheckLastPlayerStanding())
+        {
+            GameManager.Instance.HandleWin(players[0]);
+            return;
+        }
+        foreach (var player in players)
+        {
+
+            if (CheckColorSetWin(player) || CheckRowWin(player))
+            {
+                GameManager.Instance.HandleWin(player);
+                break;
+            }
+        }
+    }
+
+    private bool CheckLastPlayerStanding()
+    {
+        if (players.Count == 1)
+        {
+            return true;
+        }
+        return false;
+    }
+    private bool CheckColorSetWin(PlayerScript player)
+    {
+        var count = 0;
+        var propertyManager = GameManager.Instance.GetPropertyManager();
+        foreach (var colorGroup in propertyManager.GetAllColorGroups())
+        {
+            if (propertyManager.HasFullColorSet(player, colorGroup))
+            {
+                count++;
+            }
+        }
+        if (count >= 3)
+        {
+            return true;
+        }
+        return false;
+    }
+    private bool CheckRowWin(PlayerScript player)
+    {
+        var propertyManager = GameManager.Instance.GetPropertyManager();
+        var columns = propertyManager.GetAllRows();
+        foreach (var column in columns)
+        {
+            bool hasFullColumn = true;
+            foreach (var tileIndex in column)
+            {
+                TileRuntimeData tileData = GameManager.Instance.GetRuntimeTile(tileIndex);
+                // tileData.tileData.tileType != TileType.Property ||
+                if (tileData.owner != player)
+                {
+                    hasFullColumn = false;
+                    break;
+                }
+            }
+            if (hasFullColumn)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+
+
+
     #endregion
+
+
 
     #region Getters
     public PlayerScript GetCurrentPlayer()

@@ -8,21 +8,29 @@ public class BankruptcyManager : MonoBehaviour
 {
     public static BankruptcyManager Instance { get; private set; }
     public PlayerScript bankruptedPlayer { get; private set; }
+    private CanvasGroup detailPanel;
+    private Transform bankruptcyPanel;
     
     
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+        
+    }
+    private void Start()
+    {
+        detailPanel = GameManager.Instance.uiManager.detailPanel;
+        bankruptcyPanel = detailPanel.transform.Find("BankruptcyPanel");
+        bankruptcyPanel.Find("ConfirmButton").GetComponent<Button>().onClick.AddListener(() => CheckBankruptcyResolution());
     }
 
     public void InitiateBankruptcy(PlayerScript player)
     {
         bankruptedPlayer = player;
-        var detailPanel = GameManager.Instance.uiManager.detailPanel;
         detailPanel.gameObject.SetActive(true);
-        var bankruptcyPanel = detailPanel.transform.Find("BankruptcyPanel");
         bankruptcyPanel.gameObject.SetActive(true);
+        
         var contentPanel = bankruptcyPanel.transform.Find("Scroll View/Viewport/Content");
         var bankruptcyCardPrefab = GameManager.Instance.uiManager.bankruptcyCard;
         // GameObject prefab = Resources.Load<GameObject>("Assets/Monopoly/Prefabs/BankruptcyCard.prefab");
@@ -35,18 +43,18 @@ public class BankruptcyManager : MonoBehaviour
                 int mortgageValue = CalculateMortgageValue(tile);
                 int currentValue = CalculateCurrentValue(tile);
                 GameObject instance = Instantiate(bankruptcyCardPrefab, contentPanel, false);
-                instance.transform.Find("Panel").GetComponent<Image>().color = tileColor;
-                GameObject tilePanel = instance.transform.Find("Panel/TileName").gameObject;
+                instance.transform.Find("ColorPanel").GetComponent<Image>().color = tileColor;
+                Transform tilePanel = instance.transform.Find("ColorPanel/TileName");
                 tilePanel.GetComponent<TextMeshProUGUI>().text = tile.tileData.tileName;
-                Transform valuePanel = instance.transform.Find("ValuePanel");
+                // Transform valuePanel = instance.transform.Find("ValuePanel");
 
-                valuePanel.Find("OGValue/TileValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "TL";
-                valuePanel.Find("MGValue/MortgageValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "TL";
+                instance.transform.Find("OGValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "TL";
+                instance.transform.Find("MGValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "TL";
                 var sellButton = instance.transform.Find("SellButton").GetComponent<Button>();
                 sellButton.onClick.AddListener(() => SellProperty(tile, sellButton));
             }
         }
-        bankruptcyPanel.Find("ConfirmButton").GetComponent<Button>().onClick.AddListener(() => CheckBankruptcyResolution());
+        
     }
 
     public void SellProperty(TileRuntimeData tile, Button sellButton=null)
@@ -84,6 +92,7 @@ public class BankruptcyManager : MonoBehaviour
         if (sellButton != null)
         {
             DeleteCardFromBankruptcyUI(sellButton);
+            GameManager.Instance.ShowSelling(bankruptedPlayer, tile);
         }
         // UpdatePlayerMoneyDisplay();
 
@@ -107,11 +116,13 @@ public class BankruptcyManager : MonoBehaviour
             }
 
             // Oyuncuyu oyundan çıkar
+            GameManager.Instance.ShowBankrupt(bankruptedPlayer);
             GameManager.Instance.RemovePlayerFromGame(bankruptedPlayer);
             // GameManager.Instance.players.Remove(bankruptedPlayer);
             // Destroy(bankruptedPlayer.gameObject);
             // GameManager.Instance.uiManager.CloseBankruptcyUI();
         }
+        bankruptedPlayer.isBankrupt = false;
         GameManager.Instance.uiManager.CloseDetailPanel();
         
     }
