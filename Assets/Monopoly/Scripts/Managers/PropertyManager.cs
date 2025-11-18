@@ -89,14 +89,14 @@ public class PropertyManager : MonoBehaviour
         {
             return propertyData.groupColor switch
             {
-                "Brown" => new Color(0.1764706f, 0.01960784f, 0.01568628f),
-                "Light Blue" => new Color(0.5686275f, 0.7450981f, 0.8196079f),
-                "Pink" => new Color(0.8117648f, 0.01568628f, 0.6784314f),
-                "Orange" => new Color(0.8039216f, 0.5803922f, 0.007843138f),
-                "Red" => new Color(0.8078432f, 0.07843138f, 0.07058824f),
-                "Yellow" => new Color(0.509434f, 0.4867925f, 0.0f),
-                "Green" => new Color(0.1278409f, 0.5f, 0f),
-                "Blue" => new Color(0.02745098f, 0.05490196f, 0.2588235f),
+                "Brown" => new Color32(0x2B, 0x00, 0x00, 255),
+                "Light Blue" => new Color32(0x93, 0xD6, 0xFF, 255),
+                "Pink" => new Color32(0xFF, 0x00, 0xBF, 255),
+                "Orange" => new Color32(0xFF, 0x9D, 0x00, 255),
+                "Red" => new Color32(0xFF, 0x00, 0x00, 255),
+                "Yellow" => new Color32(0xFF, 0xEA, 0x00, 255),
+                "Green" => new Color32(0x30, 0xCB, 0x01, 255),
+                "Blue" => new Color32(0x00, 0x09, 0x41, 255),
 
                 _ => new Color32(0xA9, 0xA9, 0xA9, 255)
             };
@@ -105,8 +105,8 @@ public class PropertyManager : MonoBehaviour
         {
             return uoSData.groupColor switch
             {
-                "Railroad" => new Color(0.0f, 0.0f, 0.0f),
-                "Utility" => new Color(0.1607843f, 0.1607843f, 0.1607843f),
+                "Railroad" => new Color32(0x00, 0x00, 0x00,255),
+                "Utility" => new Color32(0x27, 0x28, 0x2F,255),
                 _ => new Color32(0xA9, 0xA9, 0xA9, 255)
             };
         }
@@ -139,6 +139,7 @@ public class PropertyManager : MonoBehaviour
 
         if (currentTile.tileData is PropertyData property)
         {
+            
             ProcessPropertyPurchase(property, buildings, currentTile);
         }
         else if (currentTile.tileData is UoSData uos)
@@ -163,7 +164,10 @@ public class PropertyManager : MonoBehaviour
     private void ProcessPropertyPurchase(PropertyData property, int buildings, TileRuntimeData currentTile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        // TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
+        if (currentPlayer.money > property.price)
+        {
+
+        }
         currentPlayer.money -= property.price;
         GameManager.Instance.eventManager.ShowPurchase(currentPlayer, currentTile);
         if (buildings == 1)
@@ -177,10 +181,18 @@ public class PropertyManager : MonoBehaviour
             currentPlayer.money -= property.hotelCost;
         }
 
-        // TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
         currentTile.hasHouse = buildings == 1;
         currentTile.hasHotel = buildings == 2;
         PlaceBuildings(propertyTiles[currentPlayer.currentTileIndex], buildings);
+        // PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+        // if (buildings == 0)
+        // {
+        //     if (currentPlayer.money > property.price)
+        //     {
+        //         currentPlayer.money -= property.price;
+        //         GameManager.Instance.ShowPurchase(currentPlayer, currentTile);
+        //     }
+        // }
     }
 
     private void ProcessUoSPurchase(UoSData uos, TileRuntimeData currentTile)

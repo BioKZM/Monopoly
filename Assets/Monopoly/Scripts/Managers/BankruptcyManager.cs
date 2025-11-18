@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.WSA;
 
 public class BankruptcyManager : MonoBehaviour
 {
@@ -32,24 +33,34 @@ public class BankruptcyManager : MonoBehaviour
         bankruptcyPanel.gameObject.SetActive(true);
         
         var contentPanel = bankruptcyPanel.transform.Find("Scroll View/Viewport/Content");
+        
+        // Mevcut kartları temizle
+        foreach (Transform child in contentPanel)
+        {
+            Destroy(child.gameObject);
+        }
+
         var bankruptcyCardPrefab = GameManager.Instance.uiManager.bankruptcyCard;
-        // GameObject prefab = Resources.Load<GameObject>("Assets/Monopoly/Prefabs/BankruptcyCard.prefab");
+
+        // Satın alınmış arsaları kart formunda content panel içine ekle
         foreach (var tileName in bankruptedPlayer.ownedTiles)
         {
             var tile = GameManager.Instance.propertyManager.tileRuntimeList.Find(t => t.tileData.tileName == tileName);
             if (tile != null)
             {
-                Color tileColor = GameManager.Instance.propertyManager.GetTileColor(tile.tileData);
+                Color tileColor = GameManager.Instance.GetTileColor(tile.tileData);
+                Color textColor = GameManager.Instance.GetTextColor(tile);
                 int mortgageValue = CalculateMortgageValue(tile);
                 int currentValue = CalculateCurrentValue(tile);
                 GameObject instance = Instantiate(bankruptcyCardPrefab, contentPanel, false);
                 instance.transform.Find("ColorPanel").GetComponent<Image>().color = tileColor;
                 Transform tilePanel = instance.transform.Find("ColorPanel/TileName");
-                tilePanel.GetComponent<TextMeshProUGUI>().text = tile.tileData.tileName;
-                // Transform valuePanel = instance.transform.Find("ValuePanel");
+                var tileText = tilePanel.GetComponent<TextMeshProUGUI>();
+                tileText.text = tile.tileData.tileName;
+                tileText.color = textColor;
 
-                instance.transform.Find("OGValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "TL";
-                instance.transform.Find("MGValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "TL";
+                instance.transform.Find("OGValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "₺";
+                instance.transform.Find("MGValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "₺";
                 var sellButton = instance.transform.Find("SellButton").GetComponent<Button>();
                 sellButton.onClick.AddListener(() => SellProperty(tile, sellButton));
             }

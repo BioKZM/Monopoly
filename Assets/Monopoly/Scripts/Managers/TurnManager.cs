@@ -134,8 +134,35 @@ public class TurnManager : MonoBehaviour
         }
         else if (GameManager.Instance.IsTilePurchasable(currentTile) || currentTile.owner == currentPlayer)
         {
-            GameManager.Instance.HandleButtonStates(currentTile);
-            yield return HandlePurchaseOption();
+            // if (currentTile.tileData is PropertyData property)
+            // {
+            //     if (currentTile.hasHotel)
+            //     {
+            //         GameManager.Instance.HandleButtonStates(null);
+            //     }
+            //     else if (currentPlayer.money > property.price)
+            //     {
+            //         GameManager.Instance.HandleButtonStates(currentTile);
+            //         yield return HandlePurchaseOption();
+            //     }
+            //     else if (currentPlayer.money > property.houseCost)
+            //     {
+            //         GameManager.Instance.HandleButtonStates()
+            //     }
+            // }
+            // else if (currentTile.tileData is UoSData uoS)
+            // {
+                
+            // }
+            if (currentTile.hasHotel)
+            {
+                GameManager.Instance.HandleButtonStates(null);
+            }
+            else
+            {
+                GameManager.Instance.HandleButtonStates(currentTile);
+                yield return HandlePurchaseOption();
+            }
         }
         else if (tileType == TileType.Chance || tileType == TileType.Community)
         {

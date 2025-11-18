@@ -11,8 +11,9 @@ public struct UIElements
     public Button buyHotelButton;
     public Button passButton;
     public Button drawerButton;
-    public Button closeDetailButton;
+    public Button buildPassButton;
     public Transform ownedCardsPanel;
+    public GameObject ownershipTextPrefab;
     public CanvasGroup rollDiceGroup;
     public CanvasGroup propertyActionGroup;
     public CanvasGroup buildGroup;

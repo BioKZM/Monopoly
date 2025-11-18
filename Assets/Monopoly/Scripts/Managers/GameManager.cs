@@ -40,12 +40,14 @@ public class GameManager : MonoBehaviour
     public Button buyHotelButton;
     public Button passButton;
     public Button drawerButton;
+    public Button buildPassButton;
     public CanvasGroup drawerGroup;
     public CanvasGroup rollDiceGroup;
     public CanvasGroup propertyActionGroup;
     public CanvasGroup detailPanel;
     public CanvasGroup buildGroup;
     public GameObject bankruptcyCard;
+    public GameObject ownershipTextPrefab;
     public List<GameObject> playerInfoPanels = new List<GameObject>();
     public int handDeterminedDice_;
     public TMP_FontAsset messageFont;
@@ -241,7 +243,9 @@ public class GameManager : MonoBehaviour
             drawerGroup = drawerGroup,
             drawerButton = drawerButton,
             detailPanel = detailPanel,
-            bankruptcyCard = bankruptcyCard
+            bankruptcyCard = bankruptcyCard,
+            buildPassButton = buildPassButton,
+            ownershipTextPrefab = ownershipTextPrefab,
 
         };
     }
@@ -300,8 +304,20 @@ public class GameManager : MonoBehaviour
     {
         eventManager.ShowCustom(template, player, tile, building, player2);
     }
-    
 
+    public List<TileRuntimeData> GetPlayerOwnedTiles(PlayerScript player)
+    {
+        return propertyManager.GetPlayerOwnedTiles(player);
+    }
+    public void SetOwnershipPanel(int playerIndex)
+    {
+        uiManager.ShowUserTiles(playerIndex);
+    }
+
+    public Color GetTextColor(TileRuntimeData tile)
+    {
+        return uiManager.GetTextColor(tile);
+    }
 
 
 

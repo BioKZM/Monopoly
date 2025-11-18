@@ -2,21 +2,36 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Properties;
+using UnityEngine.TerrainUtils;
 
 
 public class UIManager : MonoBehaviour
 {
-
     public CanvasGroup rollDiceGroup;
     public CanvasGroup propertyActionGroup;
     public CanvasGroup buildGroup;
     public CanvasGroup drawerGroup;
     public CanvasGroup detailPanel;
     public GameObject bankruptcyCard;
+    public GameObject ownershipTextPrefab;
     private bool isDrawerOpen = false;
     public List<GameObject> playerInfoPanels = new List<GameObject>();
+
+    void Start()
+    {
+        SetupDrawer();
+    }
+
+    private void SetupDrawer()
+    {
+        var drawerRect = drawerGroup.GetComponent<RectTransform>();
+        var background = drawerRect.Find("DrawerBackground").GetComponent<RectTransform>();
+        float bgWidth = background.rect.width;
+        drawerRect.anchoredPosition = new Vector2(bgWidth, 0);
+    }
 
 
     public void InitializeUI()
@@ -29,7 +44,7 @@ public class UIManager : MonoBehaviour
         drawerGroup = uiElements.drawerGroup;
         detailPanel = uiElements.detailPanel;
         bankruptcyCard = uiElements.bankruptcyCard;
-
+        ownershipTextPrefab = uiElements.ownershipTextPrefab;
 
 
     }
@@ -56,28 +71,27 @@ public class UIManager : MonoBehaviour
         HandleButtonStates(null);
     }
 
-    public void HandleButtonStates(TileRuntimeData? tileData)
+    public void HandleButtonStates(TileRuntimeData? tile)
     {
-        switch (tileData?.tileData.tileType)
+        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+        switch (tile?.tileData.tileType)
         {
             case TileType.Property:
-                if (tileData.hasHotel)
+                PropertyData property = (PropertyData)tile.tileData;
+                if (tile.owner == currentPlayer)
                 {
-                    SetGroup(rollDiceGroup);
-                    break;
-                }
-                if (tileData.owner == GameManager.Instance.GetCurrentPlayer())
-                {
-                    SetGroup(buildGroup, tileData.hasHouse, tileData.hasHotel);
+                    SetGroup(buildGroup, tile.hasHouse, tile.hasHotel, property:property);
                 }
                 else
                 {
-                    SetGroup(propertyActionGroup, tileData.hasHouse, tileData.hasHotel);
+                    
+                    SetGroup(propertyActionGroup, tile.hasHouse, tile.hasHotel,property:property);
                 }
                 break;
             case TileType.Utility:
             case TileType.Station:
-                SetGroup(propertyActionGroup);
+                UoSData uoSData = (UoSData)tile.tileData;
+                SetGroup(propertyActionGroup,uoS:uoSData);
                 break;
             case TileType.Chance:
             case TileType.Community:
@@ -89,6 +103,7 @@ public class UIManager : MonoBehaviour
                 SetGroup(rollDiceGroup);
                 break;
             default:
+                Debug.Log("Received null");
                 SetGroup(rollDiceGroup);
                 break;
         }
@@ -163,15 +178,74 @@ public class UIManager : MonoBehaviour
         textComponent.text = playerName;
     }
 
-
-
-
-
-
-
-
-    public void SetGroup(CanvasGroup activeGroup, bool hasHouse = false, bool hasHotel = false)
+    public void ShowUserTiles(int playerIndex)
     {
+        var currentPlayer = GameManager.Instance.players[playerIndex];
+        var ownershipPanel = playerInfoPanels[playerIndex].transform.Find("OwnershipCards").gameObject;
+        Color tileTextColor;
+        Color tileBGColor;
+        var ownershipContentPanel = ownershipPanel.transform.Find("BG/Scroll View/Viewport/Content");
+        if (ownershipContentPanel.childCount > 0)
+        {
+            foreach (Transform child in ownershipContentPanel)
+            {
+                Destroy(child.gameObject);
+            }
+        }
+        List<TileRuntimeData> playerTiles = GameManager.Instance.GetPlayerOwnedTiles(currentPlayer);
+        foreach (TileRuntimeData tile in playerTiles)
+        {
+            var ownershipTile = Instantiate(ownershipTextPrefab, ownershipContentPanel, false);
+            var tileText = ownershipTile.transform.Find("TileText").GetComponent<TextMeshProUGUI>();
+            tileText.text = tile.tileData.tileName;
+
+            tileBGColor = GameManager.Instance.GetTileColor(tile.tileData);
+            tileTextColor = GetTextColor(tile);
+
+            ownershipTile.GetComponent<Image>().color = tileBGColor;
+            tileText.color = tileTextColor;
+
+        }
+        ownershipPanel.SetActive(!ownershipPanel.activeInHierarchy);
+
+    }
+    public Color GetTextColor(TileRuntimeData tile)
+    {
+        Color textColor = new();
+        if (tile.tileData is PropertyData pData)
+        {
+            switch (pData.groupColor)
+            {
+                case "Brown":
+                case "Pink":
+                case "Orange":
+                case "Red":
+                case "Blue":
+                    textColor = new Color(0xFF, 0xFF, 0xFF, 255);
+                    break;
+                case "Light Blue":
+                case "Yellow":
+                case "Green":
+                    textColor = new Color(0x00, 0x00, 0x00, 255);
+                    break;
+            }
+        }
+        else if (tile.tileData is UoSData uosData)
+        {
+            textColor = new Color(0xFF, 0xFF, 0xFF, 255);
+        }
+        return textColor;
+    }
+
+
+
+
+
+
+    public void SetGroup(CanvasGroup activeGroup, bool hasHouse = false, bool hasHotel = false, PropertyData? property = null, UoSData? uoS = null)
+    {
+        Debug.Log($"Gelen grup: {activeGroup}");
+        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
         CanvasGroup[] groups = { rollDiceGroup, propertyActionGroup, buildGroup };
         foreach (var g in groups)
         {
@@ -181,25 +255,90 @@ public class UIManager : MonoBehaviour
             g.blocksRaycasts = isActive;
 
         }
-        if (hasHouse)
+        if (property != null)
         {
-            buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
-            buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = true;
-        }
-        // else if (hasHotel)
-        // {
-        //     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
-        //     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+            // Ev varsa
+            if (hasHouse)
+            {
+                // Otele para yetiyorsa
+                if (currentPlayer.money > property.hotelCost)
+                {
+                    buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+                    buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = true;
+                }
+                // Otele para yetmiyorsa
+                else
+                {
+                    buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+                    buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+                }
+            }
+            // Otel varsa
+            else if (hasHotel)
+            {
+                buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+                buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+            }
+            // Bina yoksa
+            else
+            {
+                // Eve para yetiyorsa
+                if (currentPlayer.money > property.houseCost)
+                {
+                    buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
+                    buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+                }
+                else if (currentPlayer.money > property.price && currentPlayer.money < property.houseCost)
+                {
+                    propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
+                    buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+                    buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+                }
+                else
+                {
+                    propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
+                    buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+                    buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+                }
 
-        // }
-        else
+            }
+        }
+        if (uoS != null)
         {
-            buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
-            buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
+            if (currentPlayer.money > uoS.price)
+            {
+                propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
+            }
+            else
+            {
+                propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
+            }
         }
     }
     
     
+
+    private IEnumerator AnimateDrawer(float duration)
+    {
+        var drawerRect = drawerGroup.GetComponent<RectTransform>();
+        var background = drawerRect.Find("DrawerBackground").GetComponent<RectTransform>();
+
+        float width = background.rect.width;
+        Vector2 startPos = drawerRect.anchoredPosition;
+        Vector2 targetPos = isDrawerOpen ? Vector2.zero : new Vector2(width, 0);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            drawerRect.anchoredPosition = Vector2.Lerp(startPos, targetPos, smoothT);
+            yield return null;
+        }
+
+        drawerRect.anchoredPosition = targetPos;
+    }
 
     public void AddButtonListeners()
     {
@@ -209,19 +348,14 @@ public class UIManager : MonoBehaviour
         uiElements.buyHouseButton.onClick.AddListener(() => GameManager.Instance.GetPropertyManager().BuyTile(1));
         uiElements.buyHotelButton.onClick.AddListener(() => GameManager.Instance.GetPropertyManager().BuyTile(2));
         uiElements.passButton.onClick.AddListener(() => PassButton());
+        uiElements.buildPassButton.onClick.AddListener(() => PassButton());
         uiElements.drawerButton.onClick.AddListener(() =>
         {
-            // drawerGroup.transform.position = isDrawerOpen ? drawerGroup.transform.position + new Vector3(375, 0, 0) : drawerGroup.transform.position - new Vector3(375, 0, 0);
-            Vector3 targetPosition = isDrawerOpen ? 
-            drawerGroup.transform.position + new Vector3(375, 0, 0) : 
-            drawerGroup.transform.position - new Vector3(375, 0, 0);
-            drawerGroup.transform.position = targetPosition;
-            // drawerGroup.transform.position = Vector3.Lerp(
-            //     drawerGroup.transform.position,
-            //     targetPosition,
-            //     Time.deltaTime * 5f  // Hız faktörü
-            // );
+            if (drawerGroup == null) return;
+
             isDrawerOpen = !isDrawerOpen;
+            StopAllCoroutines();
+            StartCoroutine(AnimateDrawer(0.3f));
         });
 
 

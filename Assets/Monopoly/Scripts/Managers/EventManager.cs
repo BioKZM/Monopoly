@@ -108,8 +108,8 @@ public class EventManager : MonoBehaviour
     {
         if (queue.Count == 0) yield break;
         showing = true;
-        string msg = queue.Dequeue();
-        messageText.text = msg;
+        string message = queue.Dequeue();
+        messageText.text = message;
 
         yield return Animate(offscreenAnchored, onscreenAnchored, slideDuration);
         float t = 0f;
@@ -125,12 +125,12 @@ public class EventManager : MonoBehaviour
 
     IEnumerator Animate(Vector2 from, Vector2 to, float duration)
     {
-        float t = 0f;
-        while (t < duration)
+        float time = 0f;
+        while (time < duration)
         {
-            t += Time.deltaTime;
-            float a = Mathf.SmoothStep(0f, 1f, t / duration);
-            bannerRect.anchoredPosition = Vector2.Lerp(from, to, a);
+            time += Time.deltaTime;
+            float animation = Mathf.SmoothStep(0f, 1f, time / duration);
+            bannerRect.anchoredPosition = Vector2.Lerp(from, to, animation);
             yield return null;
         }
         bannerRect.anchoredPosition = to;
@@ -142,22 +142,22 @@ public class EventManager : MonoBehaviour
     public void ShowPurchase(PlayerScript buyer, TileRuntimeData tile)
     {
         string template = "{player} {tile} arsasını satın aldı.";
-        string msg = BuildMessage(template, buyer, tile, null, null);
-        Enqueue(msg);
+        string message = BuildMessage(template, buyer, tile, null, null);
+        Enqueue(message);
     }
     public void ShowSelling(PlayerScript seller, TileRuntimeData tile)
     {
         string template = "{player} {tile} arsasını sattı.";
-        string msg = BuildMessage(template, seller, tile, null, null);
-        Enqueue(msg);
+        string message = BuildMessage(template, seller, tile, null, null);
+        Enqueue(message);
     }
 
     public void ShowRentPayment(PlayerScript payer, PlayerScript payee, TileRuntimeData tile, int amount)
     {
         string template = "{player} {player2} oyuncusuna kira ödüyor.";
-        string msg = BuildMessage(template, payer, tile, null, payee);
-        msg += $" <color=#DE0000>({amount:N0}₺)</color>";
-        Enqueue(msg);
+        string message = BuildMessage(template, payer, tile, null, payee);
+        message += $" <color=#DE0000>({amount:N0}₺)</color>";
+        Enqueue(message);
     }
 
     public void ShowGoToJail(PlayerScript player)
@@ -213,7 +213,7 @@ public class EventManager : MonoBehaviour
         if (tile != null)
         {
             var tileName = Escape(tile.tileData.tileName);
-            result = result.Replace("{tile}", Colorize(tileName, GetTileColor(tile)));
+            result = result.Replace("{tile}", Colorize(tileName, SetTileColor(tile)));
         }
 
         if (!string.IsNullOrEmpty(building))
@@ -268,14 +268,14 @@ public class EventManager : MonoBehaviour
         return Palette(idx);
     }
 
-    Color GetTileColor(TileRuntimeData tile)
+    Color SetTileColor(TileRuntimeData tile)
     {
         if (tile == null) return Color.black;
         var propertyManager = GameManager.Instance.propertyManager;
-        if (propertyManager != null)
-        {
-            try { return propertyManager.GetTileColor(tile.tileData); } catch { }
-        }
+        // if (propertyManager != null)
+        // {
+        //     try { return propertyManager.GetTileColor(tile.tileData); } catch { }
+        // }
         if (tile.tileData is PropertyData propertyData)
         {
             switch (propertyData.groupColor)

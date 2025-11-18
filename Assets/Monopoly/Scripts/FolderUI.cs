@@ -3,7 +3,7 @@ using UnityEngine.EventSystems;
 
 public class PropertyCardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
-    private float hoverOffset = 20f;
+    private float hoverOffset = 10f;
 
     void Start()
     {
