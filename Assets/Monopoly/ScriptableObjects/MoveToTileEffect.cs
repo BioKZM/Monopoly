@@ -5,7 +5,7 @@ public class MoveToTileEffect : CardData
 {
     public int targetTileIndex;
     public bool isLookingCurrentTile;
-    public bool isJail;
+    public bool goToJail;
     public bool goToSpawn;
     public override void Execute(PlayerScript player)
     {
@@ -13,6 +13,6 @@ public class MoveToTileEffect : CardData
         {
             player.money += 2000;
         }
-        player.MoveTo(targetTileIndex, isLookingCurrentTile, isJail, goToSpawn);
+        player.MoveTo(targetTileIndex, isLookingCurrentTile, goToJail, goToSpawn);
     }
 }

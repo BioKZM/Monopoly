@@ -129,9 +129,6 @@ public class BankruptcyManager : MonoBehaviour
             // Oyuncuyu oyundan çıkar
             GameManager.Instance.ShowBankrupt(bankruptedPlayer);
             GameManager.Instance.RemovePlayerFromGame(bankruptedPlayer);
-            // GameManager.Instance.players.Remove(bankruptedPlayer);
-            // Destroy(bankruptedPlayer.gameObject);
-            // GameManager.Instance.uiManager.CloseBankruptcyUI();
         }
         bankruptedPlayer.isBankrupt = false;
         GameManager.Instance.uiManager.CloseDetailPanel();

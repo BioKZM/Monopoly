@@ -148,7 +148,6 @@ public class GameManager : MonoBehaviour
         // Manager'lara gerekli referansları ata
         turnManager.players = players;
         
-        // propertyManager.tileRuntimeList = propertyManager.tileRuntimeList;
         propertyManager.propertyTiles = propertyTiles;
         
         uiManager.InitializeUI();

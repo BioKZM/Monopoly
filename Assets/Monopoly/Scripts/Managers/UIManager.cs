@@ -23,6 +23,7 @@ public class UIManager : MonoBehaviour
     void Start()
     {
         SetupDrawer();
+        SetPlayersInfo(GameManager.Instance.players);
     }
 
     private void SetupDrawer()
@@ -47,6 +48,20 @@ public class UIManager : MonoBehaviour
         ownershipTextPrefab = uiElements.ownershipTextPrefab;
 
 
+    }
+    public void SetPlayersInfo(List<PlayerScript> players)
+    {
+        for (int x = 0; x < players.Count; x++)
+        {
+            Outline playerColorOutline = playerInfoPanels[x].transform.Find("AvatarOutline").GetComponent<Outline>();
+            RawImage playerSteamProfileImage = playerInfoPanels[x].transform.Find("Avatar").GetComponent<RawImage>();
+            TextMeshProUGUI playerNameText = playerInfoPanels[x].transform.Find("InfoPanel").Find("PlayerName").Find("PNText").GetComponent<TextMeshProUGUI>();
+
+
+            playerNameText.text = players[x].playerName;
+            playerSteamProfileImage.texture = players[x].playerSteamProfileImage.texture;
+            playerColorOutline.effectColor = players[x].playerColor;
+        }
     }
 
     public void UpdatePlayersInfo(List<PlayerScript> players)

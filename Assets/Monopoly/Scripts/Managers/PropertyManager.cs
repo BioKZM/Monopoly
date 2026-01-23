@@ -31,17 +31,7 @@ public class PropertyManager : MonoBehaviour
         return propertiesInColorGroup.Count == groupCount &&
                propertiesInColorGroup.All(tile => tile.owner == player);
     }
-    // public int CountUoSTiles(PlayerScript player, string colorGroup)
-    // {
-    //     var groupCount = GetColorGroupCount(colorGroup);
-    //     var propertiesInColorGroup = tileRuntimeList
-    //         .Where(tile => tile.tileData is PropertyData property && property.groupColor == colorGroup)
-    //         .ToList();
 
-    //     // return propertiesInColorGroup.Count == groupCount &&
-    //     //        propertiesInColorGroup.All(tile => tile.owner == player);
-    //     return propertiesInColorGroup.Count(tile => tile.owner == player);
-    // }
 
     private int GetColorGroupCount(string colorGroup)
     {
@@ -184,15 +174,7 @@ public class PropertyManager : MonoBehaviour
         currentTile.hasHouse = buildings == 1;
         currentTile.hasHotel = buildings == 2;
         PlaceBuildings(propertyTiles[currentPlayer.currentTileIndex], buildings);
-        // PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        // if (buildings == 0)
-        // {
-        //     if (currentPlayer.money > property.price)
-        //     {
-        //         currentPlayer.money -= property.price;
-        //         GameManager.Instance.ShowPurchase(currentPlayer, currentTile);
-        //     }
-        // }
+
     }
 
     private void ProcessUoSPurchase(UoSData uos, TileRuntimeData currentTile)
@@ -208,8 +190,6 @@ public class PropertyManager : MonoBehaviour
         currentTile.owner = currentPlayer;
         currentPlayer.ownedTiles.Add(currentTile.tileData.tileName);
         currentPlayer.hasMadeDecision = true;
-        // currentPlayer.UpdateOwnedTilesUI();
-        // GameManager.Instance.AddPropertyCardToUI(currentTile.tileData.tileName);
         
         GameManager.Instance.HandleButtonStates(null);
     }
@@ -235,17 +215,6 @@ public class PropertyManager : MonoBehaviour
             currentTile.transform.GetChild(2).gameObject.SetActive(false);
         }
         else return;
-        // if (buildings < 5 && buildings > 0)
-        // {
-        //     for (int x = 0; x < buildings; x++)
-        //     {
-        //         currentTile.transform.GetChild(x).gameObject.SetActive(true);
-        //     }
-        // }
-        // else if (buildings == 5)
-        // {
-        //     currentTile.transform.GetChild(4).gameObject.SetActive(true);
-        // }
     }
     public List<TileRuntimeData> GetPlayerOwnedTiles(PlayerScript player)
     {
@@ -257,35 +226,5 @@ public class PropertyManager : MonoBehaviour
     #endregion
 
         #region UI Management
-    // public void ManageBuyoutUI(TileRuntimeData tile)
-    // {
-    //     PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-
-    //     if (tile.tileData is PropertyData property)
-    //     {
-    //         Transform buyoutButtons = GameManager.Instance.uiManager.GetBuyoutButtons();
-    //         for (int x = 0; x < 6; x++)
-    //         {
-    //             buyoutButtons.transform.GetChild(x).GetComponent<Button>().interactable = false;
-
-    //             if (currentPlayer.money >= property.price + (property.houseCost * x))
-    //             {
-    //                 buyoutButtons.transform.GetChild(x).GetComponent<Button>().interactable = true;
-    //             }
-    //         }
-    //     }
-    //     else if (tile.tileData is UoSData uoSData)
-    //     {
-    //         Transform purchaseButtons = GameManager.Instance.uiManager.GetPurchaseButtons();
-    //         if (currentPlayer.money >= uoSData.price)
-    //         {
-    //             purchaseButtons.transform.GetChild(0).GetComponent<Button>().interactable = true;
-    //         }
-    //         else
-    //         {
-    //             purchaseButtons.transform.GetChild(0).GetComponent<Button>().interactable = false;
-    //         }
-    //     }
-    // }
     #endregion
 } 

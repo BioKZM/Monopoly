@@ -4,23 +4,45 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using Mirror;
 
-public class PlayerScript : MonoBehaviour
+public class PlayerScript : NetworkBehaviour
 {
     public List<GameObject> tiles;
 
     private Animator animator;
+
+    // Oyuncunun mevcut kare indeksi
     public int currentTileIndex = 0;
+    // Oyuncu mülk satın alımını yaptı mı?
     public bool hasMadeDecision = false;
+    // Mülk satın alımı için UI isteği
     public bool wantsToBuy = false;
+    // Oyuncunun satın aldığı mülklerin ismi
     public List<string> ownedTiles = new List<string>();
+    // Oyuncunun parası
     public int money = 50000;
+    // Oyuncunun hareket durumu
     public bool isMoving = false;
+    // Oyuncunun hapis durumu
     public bool isInJail = false;
+    // Oyuncunun hapisten çıkmak için zar atma sayısı, 0-3 arası artan formatta. 3 olunca zorunlu ödeme.
     public int jailRollCount = 0;
+    // Oyuncunun başlangıçta para alma durumu
     public bool didPlayerTakeMoneyOnStart = true;
+    // Oyuncunun iflas durumu, UI çağrısı için
     public bool isBankrupt = false;
+    // Oyuncunun ismi (Steam)
     public string playerName;
+    // Oyuncunun Steam ID'si
+    public ulong playerSteamId;
+    // Oyuncunun Steam profil resmi
+    public RawImage playerSteamProfileImage;
+    // Oyuncunun seçtiği karakter rengi
+    public Color playerColor;
+    // Oyuncunun seçtiği karakter indeksi
+    public int characterIndex;
+
 
 
     void Start()

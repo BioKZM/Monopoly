@@ -272,10 +272,6 @@ public class EventManager : MonoBehaviour
     {
         if (tile == null) return Color.black;
         var propertyManager = GameManager.Instance.propertyManager;
-        // if (propertyManager != null)
-        // {
-        //     try { return propertyManager.GetTileColor(tile.tileData); } catch { }
-        // }
         if (tile.tileData is PropertyData propertyData)
         {
             switch (propertyData.groupColor)
