@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
 
 /// <summary>
 /// EventManager: queues and displays short event banners at the top of the screen.

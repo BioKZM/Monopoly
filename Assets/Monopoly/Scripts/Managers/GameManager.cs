@@ -1,13 +1,12 @@
 #nullable enable
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Linq;
-using UnityEngine.Tilemaps;
 using TMPro;
+using Mirror;
+using Mirror.Examples.Basic;
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
     #region Singleton
     public static GameManager Instance { get; private set; }
@@ -56,6 +55,13 @@ public class GameManager : MonoBehaviour
     public int maxQueue = 99;
     #endregion
 
+    #region Networking
+
+    // public readonly SyncList<PlayerScript> players = new SyncList<PlayerScript>();
+
+
+    #endregion
+
     #region Unity Lifecycle Methods
     void Awake()
     {
@@ -72,7 +78,7 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        DebugGameState();
+        // DebugGameState();
     }
     #endregion
 

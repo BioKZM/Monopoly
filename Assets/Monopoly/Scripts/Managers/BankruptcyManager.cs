@@ -1,9 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System;
 using TMPro;
 using UnityEngine.UI;
-using UnityEngine.WSA;
 
 public class BankruptcyManager : MonoBehaviour
 {
@@ -53,6 +51,7 @@ public class BankruptcyManager : MonoBehaviour
                 int mortgageValue = CalculateMortgageValue(tile);
                 int currentValue = CalculateCurrentValue(tile);
                 GameObject instance = Instantiate(bankruptcyCardPrefab, contentPanel, false);
+
                 instance.transform.Find("ColorPanel").GetComponent<Image>().color = tileColor;
                 Transform tilePanel = instance.transform.Find("ColorPanel/TileName");
                 var tileText = tilePanel.GetComponent<TextMeshProUGUI>();
@@ -62,6 +61,7 @@ public class BankruptcyManager : MonoBehaviour
                 instance.transform.Find("OGValue").GetComponent<TextMeshProUGUI>().text = currentValue.ToString() + "₺";
                 instance.transform.Find("MGValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "₺";
                 var sellButton = instance.transform.Find("SellButton").GetComponent<Button>();
+
                 sellButton.onClick.AddListener(() => SellProperty(tile, sellButton));
             }
         }

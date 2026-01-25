@@ -1,7 +1,6 @@
 using UnityEngine;
 using Mirror;
 using Steamworks;
-using System.Collections.Generic;
 
 public class SteamLobbyController : MonoBehaviour
 {
