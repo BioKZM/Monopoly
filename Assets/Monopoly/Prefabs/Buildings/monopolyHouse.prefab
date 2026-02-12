@@ -64,9 +64,21 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: -8391222552659086748, guid: 919915a58daebb943ab91e8fe57c39a0, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: -1760714182489039777, guid: 919915a58daebb943ab91e8fe57c39a0, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 919915a58daebb943ab91e8fe57c39a0, type: 3}
       propertyPath: m_Name
       value: monopolyHouse
+      objectReference: {fileID: 0}
+    - target: {fileID: 1120677706282511819, guid: 919915a58daebb943ab91e8fe57c39a0, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

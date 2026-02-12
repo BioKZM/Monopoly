@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tileName: 2
   tileID: 0
-  tileType: 0
+  tileType: 6
   targetTileIndex: 0
   isLookingCurrentTile: 0
-  isJail: 1
+  goToJail: 1
   goToSpawn: 0

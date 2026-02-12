@@ -2,26 +2,20 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using Mirror.Examples.Basic;
 
-/// <summary>
-/// EventManager: queues and displays short event banners at the top of the screen.
-/// Attach to a GameObject under Canvas and assign BannerRect (background) and MessageText (TMP).
-/// Use EventManager.Instance.ShowPurchase(...), ShowRentPayment(...), etc. to enqueue messages.
-/// </summary>
 public class EventManager : MonoBehaviour
 {
     public static EventManager Instance { get; private set; }
 
     [Header("UI References")]
-    private RectTransform bannerRect;         // root rect of the card (anchored to top center)
+    private RectTransform bannerRect;
 
-    [Header("Message Text (created at runtime)")]
-    // The TextMeshProUGUI is created automatically as a child of bannerRect at runtime.
-    // Assign a font asset and style via the inspector below.
-    private TMP_FontAsset messageFont;       // assign in inspector
+    [Header("Message Text")]
+    private TMP_FontAsset messageFont;
     private int messageFontSize;
     private Color messageFontColor = Color.black;
-    private TextMeshProUGUI messageText;      // created at Awake if null
+    private TextMeshProUGUI messageText;
 
     [Header("Animation")]
     private Vector2 offscreenAnchored;
@@ -98,8 +92,9 @@ public class EventManager : MonoBehaviour
     public void Enqueue(string richText)
     {
         if (string.IsNullOrWhiteSpace(richText)) return;
+        GameManager.Instance.logManager.AddLog(richText);
         if (queue.Count >= maxQueue) queue.Dequeue();
-        queue.Enqueue(richText);
+        queue.Enqueue("\n" + richText);
         if (!showing) StartCoroutine(ShowNext());
     }
 
@@ -184,11 +179,30 @@ public class EventManager : MonoBehaviour
         message += $" <color=#DE0000>({amount:N0}₺)</color>";
         Enqueue(message);
     }
+    public void ShowBailPayment(PlayerScript player, int amount)
+    {
+        string template = "{player} kefalet ödeyerek kodesten çıktı."; 
+        string message = BuildMessage(template, player, null, null, null); 
+        message += $" <color=#DE0000>({amount:N0}₺)</color>";
+        Enqueue(message);
+    }
+
+    public void ShowDice(PlayerScript player, int die1, int die2)
+    {
+        string template = "{player} ";
+        string message = BuildMessage(template, player, null, null, null);
+        message += $"<color=#000000>{die1+die2}</color> attı.\n({die1} + {die2})";
+        Enqueue(message);
+        
+    }
+
 
     public void ShowCustom(string template, PlayerScript player = null, TileRuntimeData tile = null, string building = null, PlayerScript player2 = null)
     {
         Enqueue(BuildMessage(template, player, tile, building, player2));
     }
+
+
 
     // -------------------------
     // Message builder + color helpers

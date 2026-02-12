@@ -1,3 +1,4 @@
+using Mirror;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ChanceCardEffects/MoveToTile")]
@@ -9,6 +10,8 @@ public class MoveToTileEffect : CardData
     public bool goToSpawn;
     public override void Execute(PlayerScript player)
     {
+        if (!NetworkServer.active) return;
+        
         if (goToSpawn)
         {
             player.money += 2000;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,4 +22,12 @@ public struct UIElements
     public CanvasGroup detailPanel;
     public List<GameObject> playerInfoPanels;
     public GameObject bankruptcyCard;
+    public GameObject loadingPanel;
+    public TextMeshProUGUI loadingText;
+    public GameObject startGameButton;
+    public GameObject escPanel;
+    public Button returnToMainMenuButton;
+    public Button quitGameButton;
+    // public GameObject logsWindow;
+    // public Button openLogsButton;
 } 

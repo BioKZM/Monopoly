@@ -4,9 +4,6 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Properties;
-using UnityEngine.TerrainUtils;
-
 
 public class UIManager : MonoBehaviour
 {
@@ -17,13 +14,26 @@ public class UIManager : MonoBehaviour
     public CanvasGroup detailPanel;
     public GameObject bankruptcyCard;
     public GameObject ownershipTextPrefab;
+    public GameObject loadingPanel;
+    public GameObject escPanel;
+    public TextMeshProUGUI loadingText;
+    public Button returnToMainMenuButton;
+    public Button quitGameButton;
+    // public GameObject logsWindow;
+    // public Button openLogsButton;
+    public GameObject startGameButton;
     private bool isDrawerOpen = false;
-    public List<GameObject> playerInfoPanels = new List<GameObject>();
+    public List<GameObject> playerInfoPanels = new();
 
-    void Start()
+
+
+    
+    public void UpdateLoadingStatus(int ready, int total)
     {
-        SetupDrawer();
-        SetPlayersInfo(GameManager.Instance.players);
+        if (loadingText != null)
+        {
+            loadingText.text = $"Oyuncular Hazırlanıyor... ({ready}/{total})";
+        }
     }
 
     private void SetupDrawer()
@@ -46,32 +56,166 @@ public class UIManager : MonoBehaviour
         detailPanel = uiElements.detailPanel;
         bankruptcyCard = uiElements.bankruptcyCard;
         ownershipTextPrefab = uiElements.ownershipTextPrefab;
+        loadingPanel = uiElements.loadingPanel;
+        loadingText = uiElements.loadingText;
+        startGameButton = uiElements.startGameButton;
+        escPanel = uiElements.escPanel;
+        returnToMainMenuButton = uiElements.returnToMainMenuButton;
+        quitGameButton = uiElements.quitGameButton;
 
 
+        SetupDrawer();
     }
-    public void SetPlayersInfo(List<PlayerScript> players)
+
+    
+    public void SetPlayersInfo(IList<PlayerScript> players)
     {
+        if (players == null || playerInfoPanels == null) return;
+
         for (int x = 0; x < players.Count; x++)
         {
-            Outline playerColorOutline = playerInfoPanels[x].transform.Find("AvatarOutline").GetComponent<Outline>();
-            RawImage playerSteamProfileImage = playerInfoPanels[x].transform.Find("Avatar").GetComponent<RawImage>();
-            TextMeshProUGUI playerNameText = playerInfoPanels[x].transform.Find("InfoPanel").Find("PlayerName").Find("PNText").GetComponent<TextMeshProUGUI>();
+            if (x >= playerInfoPanels.Count) {
+                Debug.LogWarning($"[UI] {x} indexli oyuncu için UI paneli atanmamış!");
+                continue; 
+            }
 
+            PlayerScript pScript = players[x];
+            Transform panel = playerInfoPanels[x].transform;
 
-            playerNameText.text = players[x].playerName;
-            playerSteamProfileImage.texture = players[x].playerSteamProfileImage.texture;
-            playerColorOutline.effectColor = players[x].playerColor;
+            // --- VERİ DOĞRULAMA (KRİTİK KISIM) ---
+            // Eğer playerName boşsa veya "Loading..." kalmışsa, visualData'dan çekmeyi dene
+            if (string.IsNullOrEmpty(pScript.playerName) || pScript.playerName == "Loading...")
+            {
+                if (pScript.visualData != null && !string.IsNullOrEmpty(pScript.visualData.steamName))
+                {
+                    pScript.playerName = pScript.visualData.steamName;
+                    pScript.playerColor = pScript.visualData.playerColor;
+                }
+            }
+
+            // --- UI GÜNCELLEME ---
+            // 1. İsim Güncelleme
+            Transform nameObj = panel.Find("InfoPanel/PlayerName/PNText");
+            if (nameObj != null && nameObj.TryGetComponent(out TextMeshProUGUI txt))
+            {
+                string playerName = pScript.playerName;
+                if (string.IsNullOrEmpty(playerName))
+                {
+                    playerName = "Loading...";
+                }
+                else
+                {
+                    playerName = pScript.playerName;
+                }
+                if (playerName.Length > 14)
+                {
+                    playerName = playerName.Substring(0,14);
+                    txt.fontSize = 14;
+                }
+                else
+                {
+                    switch (playerName.Length)
+                    {
+                        case 10:
+                            txt.fontSize = 22;
+                            break;
+                        case 11:
+                            txt.fontSize = 20;
+                            break;
+                        case 12:
+                            txt.fontSize = 18;
+                            break;
+                        case 13:
+                            txt.fontSize = 16;
+                            break;
+                        case 14:
+                            txt.fontSize = 14;
+                            break;
+                        default:
+                            txt.fontSize = 24;
+                            break;
+                    }
+                }
+                
+                txt.text = playerName;
+            }
+
+            // 2. Renk ve Outline Güncelleme
+            Transform outlineObj = panel.Find("AvatarOutline");
+            if (outlineObj != null && outlineObj.TryGetComponent(out Outline outline))
+            {
+                // Eğer renk hala beyaz (varsayılan) ise visualData'dan tekrar kontrol et
+                if (pScript.playerColor == Color.white && pScript.visualData != null)
+                    pScript.playerColor = pScript.visualData.playerColor;
+
+                outline.effectColor = pScript.playerColor;
+            }
+
+            // 3. Avatar Güncelleme
+            Transform avatarObj = panel.Find("Avatar");
+            if (avatarObj != null && avatarObj.TryGetComponent(out RawImage img))
+            {
+                if (pScript.steamAvatarTexture != null)
+                {
+                    img.texture = pScript.steamAvatarTexture;
+                    img.color = Color.white;
+                }
+                else 
+                {
+                    img.color = new Color(1, 1, 1, 0); 
+                }
+            }
+            Image backgroundSprite = panel.GetComponent<Image>();
+            if (backgroundSprite != null)
+            {
+                CardSkinData skin = GameManager.Instance.GetSkinByID(pScript.playerBackgroundIndex);
+                if (skin != null)
+                {
+                    backgroundSprite.sprite = skin.backgroundSprite;
+                }
+            }
         }
-    }
 
-    public void UpdatePlayersInfo(List<PlayerScript> players)
+    // Listenin dolup dolmadığını kontrol et
+        if (playerInfoPanels == null || playerInfoPanels.Count == 0) {
+            Debug.LogWarning("Paneller henüz hazır değil!");
+            return;
+        }
+        else
+        {
+            for (int i = 0; i < players.Count; i++)
+            {
+                // 2. ADIM: Index koruması (Panel sayısı oyuncu sayısından azsa patlama)
+                if (i >= playerInfoPanels.Count) break;
+
+                GameObject cardObj = playerInfoPanels[i];
+                if (cardObj == null) continue;
+
+                PlayerCard cardScript = cardObj.GetComponent<PlayerCard>();
+
+                // 3. ADIM: Patlayan yerin koruması (İşte burası!)
+                if (cardScript != null && players[i] != null)
+                {
+                    cardScript.owner = players[i]; // 208. satır artık güvende
+                    // Diğer UI atamalarını da burada güvenle yapabilirsin
+                    // Örn: cardScript.nameText.text = players[i].playerName;
+                }
+                else 
+                {
+                    Debug.LogWarning($"Hacı, {i}. indisteki kartta script yok veya oyuncu null!");
+                }
+            }
+        }
+        
+    }
+    public void UpdatePlayersInfo(IList<PlayerScript> players)
     {
         for (int x = 0; x < players.Count; x++)
         {
             playerInfoPanels[x].transform.Find("InfoPanel").Find("PlayerMoney").Find("PNText").GetComponent<TextMeshProUGUI>().text = FormatMoney(players[x].money);
         }
     }
-    private string FormatMoney(int amount)
+    public string FormatMoney(int amount)
     {
         return string.Format("{0:N0}₺", amount);
     }
@@ -82,13 +226,29 @@ public class UIManager : MonoBehaviour
     }
     public void PassButton()
     {
-        GameManager.Instance.GetCurrentPlayer().hasMadeDecision = true;
+        GameManager.Instance.CmdPassPurchase();
         HandleButtonStates(null);
     }
 
     public void HandleButtonStates(TileRuntimeData? tile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+        if (!currentPlayer.isLocalPlayer)
+        {
+            SetGroup(null);
+            return;
+
+        }
+        if (currentPlayer.isMoving || !GameManager.Instance.turnManager.isLocked)
+        {
+            SetGroup(null);
+            return;
+        }
+        if (!currentPlayer.hasRolledDice)
+        {
+            SetGroup(rollDiceGroup);
+            return;
+        }
         switch (tile?.tileData.tileType)
         {
             case TileType.Property:
@@ -119,7 +279,7 @@ public class UIManager : MonoBehaviour
                 break;
             default:
                 Debug.Log("Received null");
-                SetGroup(rollDiceGroup);
+                SetGroup(null);
                 break;
         }
 
@@ -172,16 +332,27 @@ public class UIManager : MonoBehaviour
         var textComponent = card.transform.Find("CardText").GetComponent<TMPro.TextMeshProUGUI>();
         textComponent.text = cardText;
     }
-    public void RemovePlayerInfoPanel(int index)
+    public void RemovePlayerInfoPanel(PlayerScript playerToRemove)
     {
-        if (index >= 0 && index < playerInfoPanels.Count)
+        foreach (var cardObj in playerInfoPanels)
         {
-            GameObject panelToRemove = playerInfoPanels[index];
-            playerInfoPanels.RemoveAt(index);
-            Destroy(panelToRemove);
+            PlayerCard card = cardObj.GetComponent<PlayerCard>();
+            if (card.owner == playerToRemove)
+            {
+                cardObj.SetActive(false); // Kartı gizle
+                // İstersen kartı listeden de silebilirsin ama SetActive(false) yeterli olur
+                break; 
+            }
         }
+        LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
+        // if (index >= 0 && index < playerInfoPanels.Count)
+        // {
+        //     GameObject panelToRemove = playerInfoPanels[index];
+        //     playerInfoPanels.RemoveAt(index);
+        //     Destroy(panelToRemove);
+        // }
     }
-    public void SetWinnerUI(string playerName)
+    public void SetWinnerUI(PlayerScript player)
     {
         var uiElements = GameManager.Instance.GetUIElements();
         var panel = uiElements.detailPanel.gameObject;
@@ -190,7 +361,10 @@ public class UIManager : MonoBehaviour
         winnerPanel.SetActive(true);
         var winnerCard = winnerPanel.transform.Find("WinnerCard").gameObject;
         var textComponent = winnerCard.transform.Find("WinnerName").GetComponent<TextMeshProUGUI>();
-        textComponent.text = playerName;
+        RawImage avatarComponent = winnerCard.transform.Find("WinnerAvatar").GetComponent<RawImage>();
+        textComponent.text = player.playerName;
+        avatarComponent.texture = player.steamAvatarTexture;
+
     }
 
     public void ShowUserTiles(int playerIndex)
@@ -372,6 +546,7 @@ public class UIManager : MonoBehaviour
             StopAllCoroutines();
             StartCoroutine(AnimateDrawer(0.3f));
         });
+
 
 
     }

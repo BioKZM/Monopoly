@@ -1,14 +1,12 @@
 using System.Collections.Generic;
-using System.IO;
-using Unity.VisualScripting;
 using UnityEngine;
 public class CardManager : MonoBehaviour
 {
     #region Card Data
     public List<CardData> chanceCardEffects;
     public List<CardData> communityCardEffects;
-    private Dictionary<int, string> chanceData;
-    private Dictionary<int, string> communityData;
+    public Dictionary<int, string> chanceData;
+    public Dictionary<int, string> communityData;
     #endregion
 
     #region Card Management
@@ -62,29 +60,7 @@ public class CardManager : MonoBehaviour
         
         return isChanceData ? chanceDataDict : communityDataDict;
     }
-    public void HandleChanceOrCommunityTile(TileRuntimeData currentTile)
-    {
 
-        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-
-        if (currentTile.tileData.tileType is TileType.Chance)
-        {
-            int randomIndex = Random.Range(0, chanceCardEffects.Count);
-            GameManager.Instance.SetupCardUI(cardText: chanceData[randomIndex], isChanceCard: true);
-            CardData randomChanceCard = chanceCardEffects[randomIndex];
-            randomChanceCard.Execute(currentPlayer);
-        }
-        else if (currentTile.tileData.tileType is TileType.Community)
-        {
-            int randomIndex = Random.Range(0, communityCardEffects.Count);
-            GameManager.Instance.SetupCardUI(cardText: communityData[randomIndex], isChanceCard: false);
-            CardData randomCommunityCard = communityCardEffects[randomIndex];
-            randomCommunityCard.Execute(currentPlayer);
-        }
-        currentPlayer.RotatePlayer();
-        currentPlayer.hasMadeDecision = true;
-    }
-    
     
     #endregion
 } 

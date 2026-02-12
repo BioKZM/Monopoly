@@ -1,7 +1,3 @@
-
-
-using NUnit.Framework;
-
 [System.Serializable]
 public class TileRuntimeData
 {

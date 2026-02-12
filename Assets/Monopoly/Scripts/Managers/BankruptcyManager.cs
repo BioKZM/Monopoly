@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 
@@ -19,6 +18,10 @@ public class BankruptcyManager : MonoBehaviour
     }
     private void Start()
     {
+        
+    }
+    public void InitalizeUI()
+    {
         detailPanel = GameManager.Instance.uiManager.detailPanel;
         bankruptcyPanel = detailPanel.transform.Find("BankruptcyPanel");
         bankruptcyPanel.Find("ConfirmButton").GetComponent<Button>().onClick.AddListener(() => CheckBankruptcyResolution());
@@ -27,6 +30,7 @@ public class BankruptcyManager : MonoBehaviour
     public void InitiateBankruptcy(PlayerScript player)
     {
         bankruptedPlayer = player;
+        int bankruptedPlayerIndex = GameManager.Instance.players.IndexOf(bankruptedPlayer);
         detailPanel.gameObject.SetActive(true);
         bankruptcyPanel.gameObject.SetActive(true);
         
@@ -62,83 +66,49 @@ public class BankruptcyManager : MonoBehaviour
                 instance.transform.Find("MGValue").GetComponent<TextMeshProUGUI>().text = mortgageValue.ToString() + "₺";
                 var sellButton = instance.transform.Find("SellButton").GetComponent<Button>();
 
-                sellButton.onClick.AddListener(() => SellProperty(tile, sellButton));
+                sellButton.onClick.AddListener(() =>
+                {
+                    bankruptedPlayer.CmdSellProperty(tile.tileData.tileName);
+                    UpdateBankruptcyUI();
+
+                    Destroy(instance);
+
+                    GameManager.Instance.RpcShowSelling(bankruptedPlayerIndex, tile.tileData.tileName);
+                });
             }
         }
         
     }
 
-    public void SellProperty(TileRuntimeData tile, Button sellButton=null)
-    {
-        // Arsayı oyuncudan çıkar
-        bankruptedPlayer.ownedTiles.Remove(tile.tileData.tileName);
-        
-        // Mortgage değerini oyuncuya ekle
-        int mortgageValue = CalculateMortgageValue(tile);
-        bankruptedPlayer.money += mortgageValue;
-        
-        // PropertyManager'daki tile'ı güncelle
-        int tileIndex = GameManager.Instance.propertyManager.tileRuntimeList.FindIndex(t => t.tileData.tileName == tile.tileData.tileName);
-        List<TileRuntimeData> tileRuntimeList = GameManager.Instance.propertyManager.tileRuntimeList;
-        if (tileIndex != -1)
-        {
-            tileRuntimeList[tileIndex].owner = null;
-            tileRuntimeList[tileIndex].hasHouse = false;
-            tileRuntimeList[tileIndex].hasHotel = false;
-        }
-        
-        // Görsel güncellemeler (evler ve oteller)
-        if (GameManager.Instance.propertyTiles.Count > tileIndex)
-        {
-            GameObject propertyTile = GameManager.Instance.propertyTiles[tileIndex];
-            // Tüm ev ve otel görsellerini kapat
-            for (int i = 0; i < propertyTile.transform.childCount; i++)
-            {
-                propertyTile.transform.GetChild(i).gameObject.SetActive(false);
-            }
-        }
-
-        // UI'ı güncelle
-        GameManager.Instance.uiManager.UpdateUI();
-        if (sellButton != null)
-        {
-            DeleteCardFromBankruptcyUI(sellButton);
-            GameManager.Instance.ShowSelling(bankruptedPlayer, tile);
-        }
-        // UpdatePlayerMoneyDisplay();
-
-        // Eğer oyuncu yeterli parayı topladıysa, bankruptcy durumundan çık
-        // CheckBankruptcyResolution();
-    }
-
+   
     private void CheckBankruptcyResolution()
     {
+        int bankruptedPlayerIndex = GameManager.Instance.players.IndexOf(bankruptedPlayer);
         if (bankruptedPlayer.money < 0)
         {
-
-            // Oyuncunun kalan arsalarını sat
-            foreach (string tileName in bankruptedPlayer.ownedTiles)
-            {
-                var tile = GameManager.Instance.propertyManager.tileRuntimeList.Find(t => t.tileData.tileName == tileName);
-                if (tile != null)
-                {
-                    SellProperty(tile);
-                }
-            }
-
+            bankruptedPlayer.CmdBankruptEverything();
+            
             // Oyuncuyu oyundan çıkar
-            GameManager.Instance.ShowBankrupt(bankruptedPlayer);
-            GameManager.Instance.RemovePlayerFromGame(bankruptedPlayer);
+            GameManager.Instance.RpcShowBankrupt(bankruptedPlayerIndex);
+            // GameManager.Instance.RemovePlayerFromGame(bankruptedPlayer);
+            bankruptedPlayer.RpcRemovePlayerFromGame();
         }
         bankruptedPlayer.isBankrupt = false;
         GameManager.Instance.uiManager.CloseDetailPanel();
         
     }
     
+    public void UpdateBankruptcyUI()
+    {
+        string currentMoney = GameManager.Instance.uiManager.FormatMoney(bankruptedPlayer.money);
+        
+        var currentMoneyText = "Mevcut bakiyen:\n" + currentMoney + "₺";
+        bankruptcyPanel.Find("CurrentMoney").GetComponent<TextMeshProUGUI>().text = currentMoneyText;
+    }
 
     
 
-    private int CalculateMortgageValue(TileRuntimeData tile)
+    public int CalculateMortgageValue(TileRuntimeData tile)
     {
         return CalculateCurrentValue(tile) * 85 / 100; // %85 mortgage değeri
     }

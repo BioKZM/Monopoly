@@ -17,5 +17,5 @@ MonoBehaviour:
   tileType: 4
   targetTileIndex: 0
   isLookingCurrentTile: 0
-  isJail: 1
+  goToJail: 1
   goToSpawn: 0

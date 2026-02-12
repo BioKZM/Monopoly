@@ -9,6 +9,7 @@ public class CameraPlayerLock : MonoBehaviour
 
     private Quaternion targetRotation;     // Kameranın geçeceği hedef rotasyon
 
+    public bool isLocked = true;
     void Start()
     {
         if (target == null) return;
@@ -20,7 +21,7 @@ public class CameraPlayerLock : MonoBehaviour
 
     void LateUpdate()
     {
-        if (target == null) return;
+        if (!isLocked || target == null) return;
 
         // Pozisyonu izometrik offset ile takip et
         Vector3 desiredPosition = target.position + offset;

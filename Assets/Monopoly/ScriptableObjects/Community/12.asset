@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tileName: 12
   tileID: 0
-  tileType: 0
+  tileType: 6
   amount: 5000
   payForBuildings: 0
   collectMoney: 0

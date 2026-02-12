@@ -4,7 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Mirror;
-using Mirror.Examples.Basic;
+using System.Linq;
+using System.Collections;
 
 public class GameManager : NetworkBehaviour
 {
@@ -20,15 +21,18 @@ public class GameManager : NetworkBehaviour
     public CardManager cardManager;
     public BankruptcyManager bankruptcyManager;
     public EventManager eventManager;
+    public LogManager logManager;
+    
     #endregion
 
     #region Game Data
     [Header("Game Data")]
     public List<TileData> tileDefinitions;
-    public List<PlayerScript> players = new List<PlayerScript>();
     public List<GameObject> propertyTiles = new List<GameObject>();
     public List<CardData> chanceCardEffects;
     public List<CardData> communityCardEffects;
+    public SkinDatabase skinDatabase;
+
     #endregion
 
     #region UI Elements
@@ -40,12 +44,22 @@ public class GameManager : NetworkBehaviour
     public Button passButton;
     public Button drawerButton;
     public Button buildPassButton;
+    public Button startMatchButton;
     public CanvasGroup drawerGroup;
     public CanvasGroup rollDiceGroup;
     public CanvasGroup propertyActionGroup;
     public CanvasGroup detailPanel;
     public CanvasGroup buildGroup;
     public GameObject bankruptcyCard;
+    public GameObject loadingPanel;
+    public TextMeshProUGUI loadingText;
+    public Transform logContentParent;
+    public ScrollRect logScrollRect;
+    public GameObject logPanel; 
+    public TextMeshProUGUI logEntryPrefab;
+    public Button logPanelButton;
+    public GameObject startGameButton;
+    public GameObject escPanel;
     public GameObject ownershipTextPrefab;
     public List<GameObject> playerInfoPanels = new List<GameObject>();
     public int handDeterminedDice_;
@@ -53,11 +67,19 @@ public class GameManager : NetworkBehaviour
     public int messageFontSize = 36;
     public RectTransform bannerRect;
     public int maxQueue = 99;
+    public DiceVisual dice1Object;
+    public DiceVisual dice2Object;
+    public Transform diceAreaTransform;
+    public TextMeshProUGUI turnCountText;
+    
     #endregion
 
     #region Networking
-
-    // public readonly SyncList<PlayerScript> players = new SyncList<PlayerScript>();
+    [SyncVar(hook=nameof(OnTurnChanged))]
+    public int currentPlayerIndex = 0;
+    [SyncVar(hook=nameof(OnTurnCountChanged))]
+    public int turnCount = 0;
+    public readonly SyncList<PlayerScript> players = new SyncList<PlayerScript>();
 
 
     #endregion
@@ -69,15 +91,11 @@ public class GameManager : NetworkBehaviour
         InitializeManagers();
     }
 
-    void Start()
-    {
-        InitializeGame();
-        uiManager.UpdateUI();
-        turnManager.StartTurn();
-    }
 
     void Update()
     {
+        Debug.Log("dice1.isStopped: "+dice1Object.isStopped);
+        Debug.Log("dice2.isStopped: "+dice2Object.isStopped);
         // DebugGameState();
     }
     #endregion
@@ -105,7 +123,9 @@ public class GameManager : NetworkBehaviour
         if (cardManager == null) cardManager = GetComponent<CardManager>();
         if (bankruptcyManager == null) bankruptcyManager = GetComponent<BankruptcyManager>();
         if (eventManager == null) eventManager = GetComponent<EventManager>();
-
+        if (logManager == null) logManager = GetComponent<LogManager>();
+        
+        
         // Eğer manager bileşenleri yoksa, otomatik olarak ekle
         if (turnManager == null) turnManager = gameObject.AddComponent<TurnManager>();
         if (propertyManager == null) propertyManager = gameObject.AddComponent<PropertyManager>();
@@ -113,24 +133,10 @@ public class GameManager : NetworkBehaviour
         if (cardManager == null) cardManager = gameObject.AddComponent<CardManager>();
         if (bankruptcyManager == null) bankruptcyManager = gameObject.AddComponent<BankruptcyManager>();
         if (eventManager == null) eventManager = gameObject.AddComponent<EventManager>();
-    }
+        if (logManager == null) logManager = gameObject.AddComponent<LogManager>();
+        
 
-    private void InitializeGame()
-    {
-        InitializePlayers();
-        InitializeTiles();
-        SetupManagers();
-        uiManager.AddButtonListeners();
-    }
 
-    private void InitializePlayers()
-    {
-        GameObject[] playerObjects = GameObject.FindGameObjectsWithTag("Player");
-        foreach (var playerObject in playerObjects)
-        {
-            var playerScript = playerObject.GetComponent<PlayerScript>();
-            players.Add(playerScript);
-        }
     }
 
     private void InitializeTiles()
@@ -152,7 +158,7 @@ public class GameManager : NetworkBehaviour
     private void SetupManagers()
     {
         // Manager'lara gerekli referansları ata
-        turnManager.players = players;
+        turnManager.players = this.players;
         
         propertyManager.propertyTiles = propertyTiles;
         
@@ -160,6 +166,8 @@ public class GameManager : NetworkBehaviour
         
         cardManager.chanceCardEffects = chanceCardEffects;
         cardManager.communityCardEffects = communityCardEffects;
+        logManager.SetupLogManager(logContentParent,logScrollRect,logPanel,logPanelButton,logEntryPrefab);
+        
     }
     #endregion
 
@@ -167,11 +175,6 @@ public class GameManager : NetworkBehaviour
     public PlayerScript GetCurrentPlayer()
     {
         return turnManager.GetCurrentPlayer();
-    }
-
-    public List<PlayerScript> GetPlayers()
-    {
-        return players;
     }
 
     public TurnManager GetTurnManager()
@@ -184,14 +187,11 @@ public class GameManager : NetworkBehaviour
         return propertyManager;
     }
 
-    public UIManager GetUIManager()
-    {
-        return uiManager;
-    }
 
-    public CardManager GetCardManager()
+
+    public CardSkinData GetSkinByID(int skinID)
     {
-        return cardManager;
+        return skinDatabase.GetSkinByID(skinID);
     }
 
     public TileRuntimeData GetRuntimeTile(int index)
@@ -208,7 +208,7 @@ public class GameManager : NetworkBehaviour
     {
         return propertyManager.IsTilePurchasable(tile);
     }
-
+    
     public void UpdateUI()
     {
         uiManager.UpdateUI();
@@ -219,10 +219,7 @@ public class GameManager : NetworkBehaviour
         uiManager.HandleButtonStates(tileData);
     }
 
-    public void HandleChanceOrCommunityTile(TileRuntimeData currentTile)
-    {
-        cardManager.HandleChanceOrCommunityTile(currentTile);
-    }
+    
     public void SetupCardUI(string cardText, bool isChanceCard)
     {
         uiManager.SetupCardUI(cardText, isChanceCard);
@@ -251,6 +248,13 @@ public class GameManager : NetworkBehaviour
             bankruptcyCard = bankruptcyCard,
             buildPassButton = buildPassButton,
             ownershipTextPrefab = ownershipTextPrefab,
+            loadingPanel = loadingPanel,
+            loadingText = loadingText,
+            startGameButton = startGameButton,
+            escPanel = escPanel,
+            // logsWindow = logsWindow,
+            // openLogsButton = openLogsButton,
+
 
         };
     }
@@ -267,48 +271,87 @@ public class GameManager : NetworkBehaviour
     {
         return propertyManager.GetRuntimeTileByName(tileName);
     }
-    #endregion
+
     public Color GetTileColor(TileData tileData)
     {
         return propertyManager.GetTileColor(tileData);
     }
 
-    public void ShowPurchase(PlayerScript buyer, TileRuntimeData tile)
+    #endregion
+
+
+    #region Events
+
+    public void ShowPurchase(int buyerIndex, string tileName)
     {
-        eventManager.ShowPurchase(buyer, tile);
+        PlayerScript buyer = players[buyerIndex];
+        var tile = propertyManager.GetRuntimeTileByName(tileName);
+        eventManager.ShowPurchase(buyer,tile);
     }
-    public void ShowSelling(PlayerScript seller, TileRuntimeData tile)
+    public void ShowDice(int dice1, int dice2)
     {
+        PlayerScript player = turnManager.currentPlayer;
+        eventManager.ShowDice(player,dice1, dice2);
+    }
+
+
+    [ClientRpc]
+    public void RpcShowSelling(int sellerIndex, string tileName)
+    {
+        PlayerScript seller = players[sellerIndex];
+        var tile = propertyManager.GetRuntimeTileByName(tileName);
         eventManager.ShowSelling(seller, tile);
     }
 
-    public void ShowRentPayment(PlayerScript payer, PlayerScript payee, TileRuntimeData tile, int amount)
+    [ClientRpc]
+    public void RpcShowRentPayment(int payerIndex, int payeeIndex, string tileName, int amount)
     {
+        PlayerScript payer = players[payerIndex];
+        PlayerScript payee = players[payeeIndex];
+        var tile = propertyManager.GetRuntimeTileByName(tileName);
         eventManager.ShowRentPayment(payer, payee, tile, amount);
     }
 
-    public void ShowGoToJail(PlayerScript player)
+    [ClientRpc]
+    public void RpcShowGoToJail(int playerIndex)
     {
+        PlayerScript player = players[playerIndex];
         eventManager.ShowGoToJail(player);
     }
 
-    public void ShowBankrupt(PlayerScript player)
+    [ClientRpc]
+    public void RpcShowBankrupt(int playerIndex)
     {
+        PlayerScript player = players[playerIndex];
         eventManager.ShowBankrupt(player);
     }
-    public void ShowBuild(PlayerScript player, TileRuntimeData tile, string buildingName)
+
+    // [ClientRpc]
+    public void ShowBuild(int playerIndex, string tileName, string buildingName)
     {
+        PlayerScript player = players[playerIndex];
+        var tile = propertyManager.GetRuntimeTileByName(tileName);
         eventManager.ShowBuild(player, tile, buildingName);
     }
-    public void ShowTaxPayment(PlayerScript player, TileRuntimeData tile, int amount)
+
+    [ClientRpc]
+    public void RpcShowTaxPayment(int playerIndex, string tileName, int amount)
     {
+        PlayerScript player = players[playerIndex];
+        var tile = propertyManager.GetRuntimeTileByName(tileName);
         eventManager.ShowTaxPayment(player, tile, amount);
     }
 
-    public void ShowCustom(string template, PlayerScript? player = null, TileRuntimeData? tile = null, string? building = null, PlayerScript? player2 = null)
+    [ClientRpc]
+    public void RpcShowBailPayment(int playerIndex, int amount)
     {
-        eventManager.ShowCustom(template, player, tile, building, player2);
+        PlayerScript player = players[playerIndex];
+        eventManager.ShowBailPayment(player, amount);
     }
+
+
+    #endregion
+
 
     public List<TileRuntimeData> GetPlayerOwnedTiles(PlayerScript player)
     {
@@ -324,57 +367,513 @@ public class GameManager : NetworkBehaviour
         return uiManager.GetTextColor(tile);
     }
 
-
-
-
-    public void RemovePlayerFromGame(PlayerScript player)
-    {
-        var index = players.FindIndex(p => p == player);
-        players.Remove(player);
-        Destroy(player.gameObject);
-        uiManager.RemovePlayerInfoPanel(index);
-        turnManager.EndTurn();
-    }
-
     public void HandleWin(PlayerScript player)
     {
         Time.timeScale = 0;
-        uiManager.SetWinnerUI(player.playerName);
+        uiManager.SetWinnerUI(player);
         
     }
 
     #region Debug
-    private void DebugGameState()
+    // private void DebugGameState()
+    // {
+    //     // Debug.Log($"Current Player: {GetCurrentPlayer().name} \n Jail Status: {GetCurrentPlayer().isInJail}");
+    //     if (Input.GetKeyDown(KeyCode.Space))
+    //     {
+    //         GetCurrentPlayer().money = -1000;
+    //         foreach (var tile in propertyManager.tileRuntimeList)
+    //         {
+    //             Debug.Log(tile.tileData.tileName);
+    //             Debug.Log(tile.owner);
+    //             // Debug.Log(tile.houseCount);
+    //             Debug.Log(tile.hasHotel);
+    //         }
+    //     }
+    //     if (Input.GetKeyDown(KeyCode.KeypadEnter))
+    //     {
+    //         Debug.Log(GetCurrentPlayer().money);
+    //         Debug.Log(GetCurrentPlayer().name);
+    //     }
+    //     if (Input.GetKeyDown(KeyCode.Keypad1))
+    //     {
+    //         propertyManager.GiveAllTilesToPlayer(GetCurrentPlayer());
+    //     }
+    //     if (Input.GetKeyDown(KeyCode.Keypad2))
+    //     {
+    //         GetCurrentPlayer().money -= 9999999;
+    //     }
+    //     if (Input.GetKeyDown(KeyCode.Keypad3))
+    //     {
+    //         // turnManager.handDeterminedDice = handDeterminedDice_;
+    //     }
+    // }
+    #endregion
+
+
+
+
+    #region F#CK1NG NETWORKING
+    public void InitializeGameLocal()
     {
-        // Debug.Log($"Current Player: {GetCurrentPlayer().name} \n Jail Status: {GetCurrentPlayer().isInJail}");
-        if (Input.GetKeyDown(KeyCode.Space))
+        Debug.Log($"[INIT_GAME_LOCAL] Function triggered.");
+        // 1. UIManager'ı ayağa kaldır (Referansları bağla)
+        uiManager.InitializeUI();
+
+        // 2. Lobiden gelen kesin oyuncu sayısını al
+        // MonopolyNetworkManager içindeki o mermi gibi statik listeyi kullanıyoruz
+        // var lobbyPlayers = MonopolyNetworkManager.finalLobbyPlayers;
+        // int playerCount = lobbyPlayers.Count;
+
+        // 3. Slotları (Check-In) lobideki sayıya göre oluştur
+        // Bu sayede "kim bağlandı" yarışı bitiyor, slotlar baştan belli
+        // uiManager.CreateCheckInSlots(playerCount); 
+
+        // 4. Manager'ları ve oyun alanını kur
+        InitializeTiles();
+        SetupManagers();
+        bankruptcyManager.InitalizeUI();
+
+        // 5. Host isen butonu hazırla
+        if (isServer && startMatchButton != null)
         {
-            GetCurrentPlayer().money = -1000;
-            foreach (var tile in propertyManager.tileRuntimeList)
+            startMatchButton.onClick.RemoveAllListeners();
+            startMatchButton.onClick.AddListener(OnStartButtonClick);
+            startMatchButton.interactable = false; // Herkes dolana kadar kapalı
+        }
+
+        // 6. UI'ı AddButtonListeners ile butonlara bağla
+        uiManager.AddButtonListeners();
+
+        // 7. İllüzyonu başlat: Siyah ekranın arkasında verileri kontrol etmeye başla
+        // Not: Bu korutin PlayerScript OnStartLocalPlayer'da da tetiklenebilir 
+        // ama burada genel kurulum bittiği için en güvenli yer burasıdır.
+        StartCoroutine(VerifyAndStartIllusion());
+    }
+
+
+    public IEnumerator VerifyAndStartIllusion()
+    {
+        // Panel zaten Inspector'da açık (Default: Active), o yüzden satırı sildik.
+        
+        bool isEverythingReady = false;
+        int expectedCount = MonopolyNetworkManager.finalLobbyPlayers.Count;
+
+        while (!isEverythingReady)
+        {
+            
+            // 1. Önce piyonların (PlayerScript) listeye eklenip eklenmediğini kontrol et
+            if (players.Count >= expectedCount)
             {
-                Debug.Log(tile.tileData.tileName);
-                Debug.Log(tile.owner);
-                // Debug.Log(tile.houseCount);
-                Debug.Log(tile.hasHotel);
+                
+                // 3. Verilerin içeriğini check et
+                bool allDataSettled = true;
+                foreach (var p in players)
+                {
+                    Debug.Log($"[VERIFY] playerName: {p.playerName}, playerColor: {p.playerColor}, isAvatarNull: {p.steamAvatarTexture == null}");
+                    // İsim Loading mi? Renk beyaz mı? Avatar gelmiş mi?
+                    if (string.IsNullOrEmpty(p.playerName) || 
+                        p.playerName == "Loading..." || 
+                        p.playerColor == Color.white || 
+                        p.steamAvatarTexture == null)
+                    {
+                        allDataSettled = false;
+                        break;
+                    }
+                }
+                
+                // 2. Senin canavar fonksiyonunla UI'ı güncellemeye zorla
+                uiManager.SetPlayersInfo(players);
+
+                // Debug.Log($"[VERIFY] allDataSettled: {allDataSettled}");
+
+                // 4. Client kendi içinde "Okeyim" dedi, Server'a rapor ver
+                if (allDataSettled)
+                {
+                    isEverythingReady = true;
+                    if (NetworkClient.localPlayer)
+                    {
+                        var localScript = NetworkClient.localPlayer.GetComponent<PlayerScript>();
+                        Debug.Log($"[VERIFY] Player ready, netID: {NetworkClient.localPlayer.netId}");
+                        // localScript.FindTiles();
+                        localScript.CmdSetReadyStatus(true);
+                    }
+                    // if (isEverythingReady) yield break;
+                } 
             }
+            
+            // Veriler oturana kadar siyah ekran arkasında 0.2 saniyede bir döner
+            yield return new WaitForSeconds(0.2f);
+            // Debug.Log($"[VERIFY] isEverythingReady: {isEverythingReady}");
         }
-        if (Input.GetKeyDown(KeyCode.KeypadEnter))
-        {
-            Debug.Log(GetCurrentPlayer().money);
-            Debug.Log(GetCurrentPlayer().name);
+
+        
+    }
+
+    [ClientRpc]
+    public void RpcBeginMatch() {
+        
+        if (uiManager.loadingPanel != null) {
+            uiManager.loadingPanel.SetActive(false); 
         }
-        if (Input.GetKeyDown(KeyCode.Keypad1))
+        StartCoroutine(WaitForPlayersAndStartTurn(0));
+    }
+
+
+
+    [SyncVar (hook = nameof(OnReadyCountChanged))] public int playersReportedReady = 0;
+    [SyncVar] public int expectedPlayerCount = 0;
+
+    [Command(requiresAuthority = false)]
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public void CmdReportReady(NetworkConnectionToClient sender = null)
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    {
+        // Yarış durumunu engellemek için sayı 0 ise lobiden tekrar çek
+        if (expectedPlayerCount <= 0)
+            expectedPlayerCount = NetworkManager.singleton.numPlayers;
+
+        playersReportedReady++;
+        Debug.Log($"[SERVER] Hazır raporu geldi: {playersReportedReady} / {expectedPlayerCount}");
+
+        // Herkes hazırsa Host'un butonunu yak (Veya direkt oyunu başlat)
+        if (playersReportedReady >= expectedPlayerCount && expectedPlayerCount > 0)
         {
-            propertyManager.GiveAllTilesToPlayer(GetCurrentPlayer());
-        }
-        if (Input.GetKeyDown(KeyCode.Keypad2))
-        {
-            GetCurrentPlayer().money -= 9999999;
-        }
-        if (Input.GetKeyDown(KeyCode.Keypad3))
-        {
-            turnManager.handDeterminedDice = handDeterminedDice_;
+            EnableStartButtonOnHost(true);
         }
     }
+    void OnReadyCountChanged(int oldVal, int newVal)
+    {
+        // UIManager'da loading yazısını güncelle: "Oyuncular Hazırlanıyor... (2/4)" gibi
+        if (uiManager != null && uiManager.loadingText != null)
+        {
+            uiManager.UpdateLoadingStatus(newVal,expectedPlayerCount);
+        }
+    }
+    public void EnableStartButtonOnHost(bool status)
+    {
+        // Bu metod sadece Host (Server) olan oyuncunun ekranında çalışır
+        if (startMatchButton != null)
+        {
+            startMatchButton.interactable = status;
+            // İstersen burada butonu yanıp söndürebilirsin "BAS HADİ" diye
+        }
+    }
+    public void OnStartButtonClick()
+    {
+        
+        // Sadece Host/Server bu butona basabilir
+        if (isServer)
+        {
+            RpcBeginMatch();
+            turnCount++;
+        }
+    }
+
+    [Command(requiresAuthority = false)]
+    #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public void CmdRequestRoll(NetworkConnectionToClient sender = null)
+    #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    {
+        PlayerScript player = sender.identity.GetComponent<PlayerScript>();
+        if (player != turnManager.GetCurrentPlayer()) return;
+
+
+        int d1 = Random.Range(1, 7);
+        int d2 = Random.Range(1, 7);
+        RpcSpawnAndRoll(player,d1,d2);
+
+        // if (player.isInJail)
+        // {
+        //     turnManager.ExecuteJailLogic(player, d1, d2);
+        // }
+        // else
+        // {
+        //     RpcBroadcastMovement(d1 + d2, d1 , d2);
+        // }
+
+
+    }
+
+    [ClientRpc]
+    public void RpcSpawnAndRoll(PlayerScript player, int d1, int d2)
+    {
+        player.hasRolledDice = true;
+
+        dice1Object.isStopped = false;
+        dice2Object.isStopped = false;
+        Vector3 spawnPoint1 = diceAreaTransform.position + new Vector3(-1, 1, 0);
+        Vector3 spawnPoint2 = diceAreaTransform.position + new Vector3(1, 1, 0);
+        dice1Object.Roll(d1,spawnPoint1);
+        dice2Object.Roll(d2,spawnPoint2);
+
+        StartCoroutine(CameraAnimation(player, d1, d2));
+    }
+    private IEnumerator CameraAnimation(PlayerScript player, int d1, int d2)
+    {
+        var cam = Camera.main;
+        var cameraLock = cam.GetComponent<CameraPlayerLock>();
+        if (cameraLock != null) cameraLock.isLocked = false;
+
+        // Başlangıç değerleri
+        Vector3 startPos = cam.transform.position;
+        Quaternion startRot = cam.transform.rotation;
+        float startSize = cam.orthographicSize; // Orijinal size (örn: 25)
+
+        // Hedef değerler
+        Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 5, -5); 
+        float targetSize = 4f; // Burası kritik! Ne kadar küçükse o kadar yakınlaşır.
+
+        float t = 0;
+        float zoomInDuration = 0.4f;
+
+        // ZOOM IN
+        while(t < 1) {
+            t += Time.deltaTime / zoomInDuration;
+            float smoothT = t * t * (3f - 2f * t);
+
+            cam.transform.position = Vector3.Lerp(startPos, zoomPos, smoothT);
+            cam.orthographicSize = Mathf.Lerp(startSize, targetSize, smoothT); // Size'ı küçültüyoruz
+            
+            // Zarlara bakış açısını yumuşat
+            Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - cam.transform.position);
+            cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+            yield return null;
+        }
+
+        yield return new WaitUntil(() => dice1Object.isStopped && dice2Object.isStopped);
+        
+        ShowDice(d1, d2);
+        t = 0;
+        while(t < 1) {
+            t += Time.deltaTime / 1.0f;
+            float smoothT = t * t * (3f - 2f * t);
+            cam.transform.position = Vector3.Lerp(zoomPos, startPos, smoothT);
+            cam.orthographicSize = Mathf.Lerp(targetSize, startSize, smoothT); // Size'ı büyütüyoruz
+            cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, startRot, smoothT);
+            yield return null;
+        }
+
+        if (cameraLock != null)
+        {
+            cameraLock.SetTarget(player.transform);
+            cameraLock.isLocked = true;
+        }
+        turnManager.isLocked = true;
+        if (NetworkServer.active)
+        {
+        
+
+            if (player.isInJail)
+            {
+                turnManager.ExecuteJailLogic(player, d1, d2);
+            }
+            else
+            {
+                // Hareketi başlatmadan önce kameranın piyonu tam yakalaması için yarım salise bekle
+                yield return new WaitForSeconds(0.1f);
+                RpcBroadcastMovement(d1 + d2, d1 , d2);
+            }
+        }
+    }
+    
+    
+    [ClientRpc]
+    public void RpcBroadcastMovement(int diceTotal, int die1, int die2)
+    {
+        StartCoroutine(turnManager.PlayerTurnCoroutine(diceTotal, die1, die2));
+    }
+
+    [Server]
+    public void ServerEndTurn()
+    {
+        if (CheckWinConditions()) return;
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
+        if (currentPlayerIndex == 0) turnCount++;
+    }
+
+    void OnTurnChanged(int oldIndex, int newIndex)
+    {
+        StartCoroutine(WaitForPlayersAndStartTurn(newIndex));
+        // turnManager.currentPlayer = turnManager.players[newIndex];
+        // turnManager.UpdateUI();
+        // turnManager.StartTurn();
+    }
+    void OnTurnCountChanged(int oldValue, int newValue)
+    {
+        // turnCountText.text = "Tur " + newValue;
+        Color randomTurnColor = Color.HSVToRGB(Random.value, 0.7f, 0.9f);
+        string hexColor = ColorUtility.ToHtmlStringRGB(randomTurnColor);
+        LogManager.Instance.AddLog($"\n\n<color=#{hexColor}><b>--- Tur {newValue} --- </b></color>\n\n");
+        // TODO
+    }
+
+    IEnumerator WaitForPlayersAndStartTurn(int targetIndex)
+    {
+        while (turnManager.players == null || turnManager.players.Count <= targetIndex || turnManager.players[targetIndex] == null)
+        {
+            yield return null;
+        }
+        turnManager.currentPlayer = players[targetIndex];
+        turnManager.UpdateUI();
+        turnManager.StartTurn();
+    }
+
+
+    public bool CheckWinConditions()
+    {
+        PlayerScript? winner = null;
+
+        if (players.Count(p => !p.bankrupted) == 1)
+        {
+            winner = players.Find(p => !p.bankrupted);  
+        }
+        else
+        {
+            foreach (var player in players)
+            {
+                if (turnManager.CheckColorSetWin(player) || turnManager.CheckRowWin(player))
+                {
+                    winner = player;
+                }
+            }
+        }
+        if (winner != null)
+        {
+            RpcShowWinner(winner);
+            return true;
+        }
+        return false;
+        
+    }
+
+    [ClientRpc]
+    public void RpcShowWinner(PlayerScript winner)
+    {
+        HandleWin(winner);
+    }
+
+
+    [TargetRpc]
+    public void TargetFailedJailRoll(NetworkConnection target, int d1, int d2)
+    {
+        GetUIElements().rollDiceButton.enabled = true;
+    }
+
+    [Command (requiresAuthority = false)]
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public void CmdProcessPurchase(int buildings, int tileIndex, NetworkConnectionToClient sender = null)
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    {
+        PlayerScript player = sender.identity.GetComponent<PlayerScript>();
+        if (player != turnManager.GetCurrentPlayer()) return;
+        TileRuntimeData currentTile = GetRuntimeTile(tileIndex);
+        
+        if (currentTile.tileData is PropertyData property)
+        {
+            int totalCost = property.price;
+            if (buildings == 1) totalCost += property.houseCost;
+            if (buildings == 2) totalCost += property.hotelCost;
+            if (player.money >= totalCost)
+            {
+                player.money -= totalCost;
+
+                if (!player.ownedTiles.Contains(currentTile.tileData.tileName))
+                {
+                    player.ownedTiles.Add(currentTile.tileData.tileName);
+                }
+                RpcOnPurchaseSuccess(player.netId, tileIndex, buildings);
+            }
+        }
+        else if (currentTile.tileData is UoSData uos)
+        {
+            if (player.money >= uos.price)
+            {
+                player.money -= uos.price;
+                RpcOnPurchaseSuccess(player.netId, tileIndex, -1);
+            }
+        }
+        player.hasMadeDecision = true;
+        
+
+    }
+    
+    [ClientRpc]
+    public void RpcOnPurchaseSuccess(uint playerNetID, int tileIndex, int buildings)
+    {
+        // 1. Oyuncuyu ağ kimliğinden bul
+        if (NetworkClient.spawned.TryGetValue(playerNetID, out NetworkIdentity identity))
+        {
+            PlayerScript buyer = identity.GetComponent<PlayerScript>();
+            int buyerIndex = players.IndexOf(buyer);
+            TileRuntimeData currentTile = propertyManager.GetRuntimeTile(tileIndex);
+
+            // 2. VERİ GÜNCELLEME: Her client kendi yerel listesini günceller
+            currentTile.owner = buyer;
+            currentTile.hasHouse = buildings == 1;
+            currentTile.hasHotel = buildings == 2;
+            
+
+            // 3. GÖRSEL GÜNCELLEME
+            switch (buildings)
+            {
+                case 0:
+                    propertyManager.PlaceBuildings(propertyManager.propertyTiles[tileIndex],0,buyer.playerMaterial);
+                    ShowPurchase(buyerIndex, currentTile.tileData.tileName);
+                    break;
+                case 1:
+                    propertyManager.PlaceBuildings(propertyManager.propertyTiles[tileIndex], 1,buyer.playerMaterial);
+                    ShowBuild(buyerIndex, currentTile.tileData.tileName, "Ev");
+                    break;
+                case 2:
+                    propertyManager.PlaceBuildings(propertyManager.propertyTiles[tileIndex], 2,buyer.playerMaterial, buyer.playerMaterialDark);
+                    ShowBuild(buyerIndex, currentTile.tileData.tileName, "Otel");
+                    break;
+                default:
+                    ShowPurchase(buyerIndex, currentTile.tileData.tileName);
+                    break;
+                    
+            }
+            
+            
+        
+        }
+    }
+
+    [Command(requiresAuthority = false)]
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public void CmdPassPurchase(NetworkConnectionToClient sender = null)
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    {
+        PlayerScript player = sender.identity.GetComponent<PlayerScript>();
+        if (player != turnManager.GetCurrentPlayer()) return;
+        player.hasMadeDecision = true;
+    }
+
+
+
+    [Command(requiresAuthority = false)]
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public void CmdRequestCard(int tileIndex, NetworkConnectionToClient sender = null)
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    {
+        PlayerScript targetPlayer = sender.identity.GetComponent<PlayerScript>();
+
+        bool isChance = GetRuntimeTile(tileIndex).tileData.tileType == TileType.Chance;
+        int randomIndex = Random.Range(0, isChance ? chanceCardEffects.Count : communityCardEffects.Count);
+        CardData card = isChance ? chanceCardEffects[randomIndex] : communityCardEffects[randomIndex];
+        card.Execute(targetPlayer);
+        Debug.Log($"[COC_CARD] isChance : {isChance}, cardIndex : {randomIndex}, cardText: {isChance : cardManager.chanceData[randomIndex] ? cardManager.communityData[randomIndex]}, targetPlayer: {targetPlayer.name}");
+        RpcShowCardEffect(randomIndex, isChance);
+        
+    }
+
+    [ClientRpc]
+    public void RpcShowCardEffect(int index, bool isChance)
+    {
+        string cardText = isChance ? cardManager.chanceData[index] : cardManager.communityData[index];
+        SetupCardUI(cardText, isChance);
+    }
+
+
     #endregion
 }

@@ -21,6 +21,7 @@ public class SimpleRGBPicker : MonoBehaviour
         sliderG.onValueChanged.AddListener(delegate { OnSliderChanged(); });
         sliderB.onValueChanged.AddListener(delegate { OnSliderChanged(); });
         hexInputField.onEndEdit.AddListener(delegate { OnHexInputSubmit(hexInputField.text); });
+        
     }
 
     // Slider her oynadığında rengi değiştir
@@ -45,7 +46,7 @@ public class SimpleRGBPicker : MonoBehaviour
 
         if (localPlayerScript != null)
         {
-            localPlayerScript.OnColorPickerUpdated(color); 
+            localPlayerScript.CmdSetColor(color);
         }
     }
 

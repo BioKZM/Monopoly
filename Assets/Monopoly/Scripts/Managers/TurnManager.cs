@@ -1,182 +1,177 @@
 using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine.UI;
-using UnityEngine.XR;
+using Mirror;
+using Unity.VisualScripting;
 
 public class TurnManager : MonoBehaviour
 {
-    #region Turn Variables
-    private int currentPlayerIndex = 0;
-    private PlayerScript currentPlayer;
-    private int die1;
-    private int die2;
-    private int dice;
-    public int handDeterminedDice;
-    #endregion
 
-    #region References
-    public List<PlayerScript> players;
-    #endregion
+    public PlayerScript currentPlayer;
+    public IList<PlayerScript> players;
+
+    public bool isLocked = true;
+    
+
 
     #region Turn Management
     public void StartTurn()
     {
-        currentPlayer = players[currentPlayerIndex];
         SetCameraLock(currentPlayer.transform);
-
         var uiElements = GameManager.Instance.GetUIElements();
-        uiElements.rollDiceButton.enabled = true;
-        GameManager.Instance.SetGroup(uiElements.rollDiceGroup);
-    }
-
-    public void OnRollDice()
-    {
-        var uiElements = GameManager.Instance.GetUIElements();
-        uiElements.rollDiceButton.enabled = false;
-        StartCoroutine(PlayerTurnCoroutine());
-    }
-
-    public void EndTurn()
-    {
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
-        GameManager.Instance.UpdateUI();
-        CheckWinConditions();
-        StartTurn();
-    }
-    #endregion
-
-    #region Player Turn Logic
-    public IEnumerator PlayerTurnCoroutine()
-    {
-        RollDice();
-        if (!currentPlayer.isInJail)
+        if (currentPlayer.isLocalPlayer)
         {
-            yield return MovePlayer();
-            yield return HandleTileAction();
-            yield return new WaitUntil(() => !currentPlayer.isBankrupt);
-            EndTurn();
-        }
-    }
-    
-    private void RollDice()
-    {
-        var uiElements = GameManager.Instance.GetUIElements();
-        if (currentPlayer.isInJail)
-        {
-            die1 = Random.Range(1, 7);
-            die2 = Random.Range(1, 7);
-            if (die1 == die2)
-            {
-                currentPlayer.isInJail = false;
-                dice = die1 + die2;
-                uiElements.rollDiceButton.enabled = false;
-                
-            }
-            else
-            {
-                currentPlayer.jailRollCount++;
-                uiElements.rollDiceButton.enabled = true;
-                if (currentPlayer.jailRollCount >= 3)
-                {
-                    currentPlayer.money -= 5000;
-                    currentPlayer.isInJail = false;
-                    uiElements.rollDiceButton.enabled = false;
-                    dice = die1 + die2;
-                   
-                }
-            }
+            uiElements.rollDiceButton.enabled = true;
+            GameManager.Instance.SetGroup(uiElements.rollDiceGroup);
         }
         else
         {
             uiElements.rollDiceButton.enabled = false;
-            die1 = Random.Range(1, 7);
-            die2 = Random.Range(1, 7);
-            dice = die1 + die2;
-            if (handDeterminedDice > 0)
-            {
-                dice = handDeterminedDice;
-                // handDeterminedDice = 0;
-                return;
-            }
-            
+            GameManager.Instance.SetGroup(null);
         }
     }
-    
 
-
-    private IEnumerator MovePlayer()
+    public void OnRollDice()
     {
-        yield return currentPlayer.MoveCoroutine(dice);
+        if (currentPlayer.isLocalPlayer)
+        {
+            GameManager.Instance.GetUIElements().rollDiceButton.enabled = false;
+            GameManager.Instance.CmdRequestRoll();
+        }
+    }
+    #endregion
+
+    #region Player Turn Logic
+    public IEnumerator PlayerTurnCoroutine(int diceTotal, int d1, int d2)
+    {
+        // Debug.Log($"D1: {d1}, D2: {d2}, T: {d1+d2}");
+        currentPlayer.hasMadeDecision = false;
+        currentPlayer.hasRolledDice = true;
+
+        
+        yield return MovePlayer(diceTotal);
+
+        
+        yield return HandleTileAction(diceTotal);
+
+        yield return new WaitUntil(() => !currentPlayer.isBankrupt);
+        
+        currentPlayer.hasRolledDice = false;
+        if (NetworkServer.active)
+        {
+            GameManager.Instance.ServerEndTurn();
+        }
+        
+    }
+    
+    public void ExecuteJailLogic(PlayerScript player, int d1, int d2)
+    {
+        bool isDouble = (d1 == d2);
+        int playerIndex = GameManager.Instance.players.FindIndex(p => p == player);
+        int amount = 500 * GameManager.Instance.turnCount;
+
+        while (player.isInJail)
+        {
+            if (isDouble)
+            {
+                player.isInJail = false;
+                player.jailRollCount = 0;
+                Debug.Log($"[JAIL_LOGIC] isDouble triggered : {d1},{d2}]");
+                GameManager.Instance.RpcBroadcastMovement(d1+d2, d1, d2);
+            }
+            else if (player.jailRollCount >= 3)
+            {
+                player.money -= amount;
+                player.isInJail = false;
+                player.jailRollCount = 0;
+                Debug.Log($"[JAIL_LOGIC] jailRollCount: {player.jailRollCount}, rollCount exhausted");
+                GameManager.Instance.RpcShowBailPayment(playerIndex,amount);
+                GameManager.Instance.RpcBroadcastMovement(d1+d2, d1, d2);
+            }
+            else
+            {
+                player.jailRollCount++;
+                Debug.Log($"[JAIL_LOGIC] jailRollCount: {player.jailRollCount}");
+                GameManager.Instance.TargetFailedJailRoll(player.connectionToClient, d1, d2);
+                break;
+            }
+        }
+        
+        
+        
+    }
+
+
+    private IEnumerator MovePlayer(int diceTotal)
+    {
+        
+        yield return currentPlayer.MoveCoroutine(diceTotal);
         while (currentPlayer.isMoving)
         {
             yield return null;
         }
     }
-    private void SetCameraLock(Transform target)
+    public void SetCameraLock(Transform target)
     {
         var cameraLock = Camera.main.GetComponent<CameraPlayerLock>();
         if (cameraLock != null)
         {
             cameraLock.SetTarget(target);
+            cameraLock.isLocked = isLocked;
         }
     }
 
-    private IEnumerator HandleTileAction()
+    private IEnumerator HandleTileAction(int diceTotal)
     {
         TileRuntimeData currentTile = GameManager.Instance.GetRuntimeTile(currentPlayer.currentTileIndex);
         TileType tileType = currentTile.tileData.tileType;
+        int currentPlayerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
 
         if (currentTile.owner != null && currentTile.owner != currentPlayer)
         {
             GameManager.Instance.HandleButtonStates(null);
-            HandleRentPayment(currentTile);
+            HandleRentPayment(currentTile, diceTotal);
         }
         else if (GameManager.Instance.IsTilePurchasable(currentTile) || currentTile.owner == currentPlayer)
         {
-            // if (currentTile.tileData is PropertyData property)
-            // {
-            //     if (currentTile.hasHotel)
-            //     {
-            //         GameManager.Instance.HandleButtonStates(null);
-            //     }
-            //     else if (currentPlayer.money > property.price)
-            //     {
-            //         GameManager.Instance.HandleButtonStates(currentTile);
-            //         yield return HandlePurchaseOption();
-            //     }
-            //     else if (currentPlayer.money > property.houseCost)
-            //     {
-            //         GameManager.Instance.HandleButtonStates()
-            //     }
-            // }
-            // else if (currentTile.tileData is UoSData uoS)
-            // {
-                
-            // }
             if (currentTile.hasHotel)
             {
                 GameManager.Instance.HandleButtonStates(null);
             }
             else
             {
-                GameManager.Instance.HandleButtonStates(currentTile);
-                yield return HandlePurchaseOption();
+                if (currentPlayer.isLocalPlayer)
+                    GameManager.Instance.HandleButtonStates(currentTile); 
+    
+                if (NetworkServer.active)
+                    currentPlayer.hasMadeDecision = false;
+                
+                yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
             }
         }
         else if (tileType == TileType.Chance || tileType == TileType.Community)
         {
-            GameManager.Instance.HandleChanceOrCommunityTile(currentTile);
+            if (currentPlayer.isLocalPlayer)
+            {
+                GameManager.Instance.CmdRequestCard(currentTile.tileData.tileID);
+            }
         }
         else if (tileType == TileType.Tax)
         {
-            var price = currentTile.GetRent(dice, false);
-            currentPlayer.money -= price;
-            GameManager.Instance.ShowTaxPayment(currentPlayer, currentTile, price);
+            var price = currentTile.GetRent(diceTotal, false);
+            if (NetworkServer.active) currentPlayer.money -= price;
+            if (NetworkServer.active)
+            {
+                
+                GameManager.Instance.RpcShowTaxPayment(currentPlayerIndex, currentTile.tileData.tileName, price);
+            }
         }
         else if (tileType == TileType.GoToJail)
         {
-            currentPlayer.GoToJail();
+            if (NetworkServer.active)
+            {
+                currentPlayer.GoToJail();
+            }
             
         }
         else
@@ -184,56 +179,30 @@ public class TurnManager : MonoBehaviour
             GameManager.Instance.HandleButtonStates(null);
         }
         currentPlayer.CheckBankruptcy();
-        currentPlayer.RotatePlayer();
+        
     }
 
-    private void HandleRentPayment(TileRuntimeData currentTile)
+    private void HandleRentPayment(TileRuntimeData currentTile, int diceTotal)
     {
+        int currentPlayerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
+        int currentOwnerIndex = GameManager.Instance.players.IndexOf(currentTile.owner);
+        if (currentTile.owner == null) return;
+
         bool hasFullSet = false;
         if (currentTile.tileData is PropertyData property)
         {
             hasFullSet = GameManager.Instance.HasFullColorSet(currentTile.owner, property.groupColor);
         }
-        int rent = currentTile.GetRent(dice, hasFullSet);
-        currentPlayer.money -= rent;
-        currentTile.owner.money += rent;
-        GameManager.Instance.ShowRentPayment(currentPlayer, currentTile.owner, currentTile, rent);
-    }
-
-    private IEnumerator HandlePurchaseOption()
-    {
-        currentPlayer.hasMadeDecision = false;
-        yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
-    }
-
-
-    private void CheckWinConditions()
-    {
-        if (CheckLastPlayerStanding())
+        int rent = currentTile.GetRent(diceTotal, hasFullSet);
+        if (NetworkServer.active)
         {
-            GameManager.Instance.HandleWin(players[0]);
-            return;
+            currentPlayer.money -= rent;
+            currentTile.owner.money += rent;
         }
-        foreach (var player in players)
-        {
-
-            if (CheckColorSetWin(player) || CheckRowWin(player))
-            {
-                GameManager.Instance.HandleWin(player);
-                break;
-            }
-        }
+        GameManager.Instance.RpcShowRentPayment(currentPlayerIndex, currentOwnerIndex, currentTile.tileData.tileName, rent);
     }
 
-    private bool CheckLastPlayerStanding()
-    {
-        if (players.Count == 1)
-        {
-            return true;
-        }
-        return false;
-    }
-    private bool CheckColorSetWin(PlayerScript player)
+    public bool CheckColorSetWin(PlayerScript player)
     {
         var count = 0;
         var propertyManager = GameManager.Instance.GetPropertyManager();
@@ -250,7 +219,7 @@ public class TurnManager : MonoBehaviour
         }
         return false;
     }
-    private bool CheckRowWin(PlayerScript player)
+    public bool CheckRowWin(PlayerScript player)
     {
         var propertyManager = GameManager.Instance.GetPropertyManager();
         var columns = propertyManager.GetAllRows();
@@ -260,7 +229,6 @@ public class TurnManager : MonoBehaviour
             foreach (var tileIndex in column)
             {
                 TileRuntimeData tileData = GameManager.Instance.GetRuntimeTile(tileIndex);
-                // tileData.tileData.tileType != TileType.Property ||
                 if (tileData.owner != player)
                 {
                     hasFullColumn = false;
@@ -287,15 +255,12 @@ public class TurnManager : MonoBehaviour
     {
         return currentPlayer;
     }
-
-    public int GetCurrentPlayerIndex()
-    {
-        return currentPlayerIndex;
-    }
-
-    public int GetDice()
-    {
-        return dice;
-    }
     #endregion
+    
+    public void UpdateUI()
+    {
+        GameManager.Instance.UpdateUI();
+    }
+    
+
 } 

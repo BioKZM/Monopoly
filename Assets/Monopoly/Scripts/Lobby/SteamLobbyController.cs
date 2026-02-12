@@ -1,6 +1,8 @@
 using UnityEngine;
 using Mirror;
 using Steamworks;
+using TMPro;
+using Unity.VisualScripting;
 
 public class SteamLobbyController : MonoBehaviour
 {
@@ -16,8 +18,11 @@ public class SteamLobbyController : MonoBehaviour
     public string currentLobbyCode;
     private const string HostAddressKey = "HostAddress";
     private const string LobbyCodeKey = "JoinCode"; // Steam'de arayacağımız etiket
-
+    
+    // public string lobbyCode;
+    public TextMeshProUGUI lobbyCodeText;
     private MonopolyNetworkManager manager;
+
 
     void Start()
     {
@@ -38,6 +43,7 @@ public class SteamLobbyController : MonoBehaviour
     {
         // Public yapıyoruz ki kod ile aranabilsin (SpaceWar'da FriendsOnly bazen aramada çıkmaz)
         SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, manager.maxConnections);
+        
     }
 
     private void OnLobbyCreated(LobbyCreated_t callback)
@@ -55,11 +61,14 @@ public class SteamLobbyController : MonoBehaviour
 
         // B. Host Adresini Kaydet (FizzySteamworks buna bağlanacak)
         string hostAddress = SteamUser.GetSteamID().ToString();
+        // hostAddress = "localhost";
         SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey, hostAddress);
+
 
         // C. 8 Haneli Rastgele Kod Üret ve Kaydet
         currentLobbyCode = GenerateRandomCode(8);
         SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), LobbyCodeKey, currentLobbyCode);
+
 
         Debug.Log($"---> ODA KODU OLUŞTURULDU: {currentLobbyCode} <---");
     }
@@ -111,13 +120,14 @@ public class SteamLobbyController : MonoBehaviour
         
         // Kodu da çek (UI'da göstermek için)
         currentLobbyCode = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), LobbyCodeKey);
-
+        
         Debug.Log($"Lobiye Girildi. Host: {hostAddress}. Mirror Bağlanıyor...");
 
         // Mirror'a hedefi göster ve Client'ı başlat
         manager.networkAddress = hostAddress;
         manager.StartClient();
     }
+    
 
     // --- YARDIMCI: KOD ÜRETİCİ ---
     private string GenerateRandomCode(int length)
@@ -131,4 +141,5 @@ public class SteamLobbyController : MonoBehaviour
         }
         return new string(stringChars);
     }
+
 }

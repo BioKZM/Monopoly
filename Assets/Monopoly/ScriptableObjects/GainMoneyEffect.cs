@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Linq;
+using Mirror;
 
 [CreateAssetMenu(menuName = "ChanceCardEffects/GainMoney")]
 public class GainMoneyEffect : CardData
@@ -10,6 +11,7 @@ public class GainMoneyEffect : CardData
 
     public override void Execute(PlayerScript player)
     {
+        if (!NetworkServer.active) return;
         if (payForBuildings)
         {
             int totalHouseAmount = 0;

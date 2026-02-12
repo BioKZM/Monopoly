@@ -1,9 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using Mirror;
 using UnityEngine;
 
-public class PropertyManager : MonoBehaviour
+public class PropertyManager : NetworkBehaviour
 {
     #region References
     public List<TileRuntimeData> tileRuntimeList = new List<TileRuntimeData>();
@@ -122,95 +122,44 @@ public class PropertyManager : MonoBehaviour
         // 1 - Ev inşa et
         // 2 - Otel inşa Et
 
+
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        TileRuntimeData currentTile = tileRuntimeList[currentPlayer.currentTileIndex];
-
-
-        if (currentTile.tileData is PropertyData property)
-        {
-            
-            ProcessPropertyPurchase(property, buildings, currentTile);
-        }
-        else if (currentTile.tileData is UoSData uos)
-        {
-            ProcessUoSPurchase(uos,currentTile);
-        }
-
-        FinalizePurchase(currentTile);
-    }
-    public void GiveAllTilesToPlayer(PlayerScript newOwner)
-    {
-        foreach (var tile in tileRuntimeList)
-        {
-            if (!new[] { 0, 2, 4, 7, 10, 17, 20, 22, 30, 33, 36, 38}.Contains(tile.tileData.tileID))
-            {
-                tile.owner = newOwner;
-                newOwner.ownedTiles.Add(tile.tileData.tileName);
-            }
-        }
-    }
-
-    private void ProcessPropertyPurchase(PropertyData property, int buildings, TileRuntimeData currentTile)
-    {
-        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        if (currentPlayer.money > property.price)
-        {
-
-        }
-        currentPlayer.money -= property.price;
-        GameManager.Instance.eventManager.ShowPurchase(currentPlayer, currentTile);
-        if (buildings == 1)
-        {
-            GameManager.Instance.ShowBuild(currentPlayer, currentTile, "EV");
-            currentPlayer.money -= property.houseCost;
-        }
-        else if (buildings == 2)
-        {
-            GameManager.Instance.ShowBuild(currentPlayer, currentTile, "OTEL");
-            currentPlayer.money -= property.hotelCost;
-        }
-
-        currentTile.hasHouse = buildings == 1;
-        currentTile.hasHotel = buildings == 2;
-        PlaceBuildings(propertyTiles[currentPlayer.currentTileIndex], buildings);
-
-    }
-
-    private void ProcessUoSPurchase(UoSData uos, TileRuntimeData currentTile)
-    {
-        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        currentPlayer.money -= uos.price;
-        GameManager.Instance.eventManager.ShowPurchase(currentPlayer, currentTile);
-    }
-
-    private void FinalizePurchase(TileRuntimeData currentTile)
-    {
-        PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-        currentTile.owner = currentPlayer;
-        currentPlayer.ownedTiles.Add(currentTile.tileData.tileName);
-        currentPlayer.hasMadeDecision = true;
-        
+        if (!currentPlayer.isLocalPlayer) return;
+        GameManager.Instance.CmdProcessPurchase(buildings, currentPlayer.currentTileIndex);
         GameManager.Instance.HandleButtonStates(null);
+        
     }
 
-    private void PlaceBuildings(GameObject currentTile, int buildings)
+    public void PlaceBuildings(GameObject currentTile, int buildings, Material playerMaterial, Material playerMaterialDark = null)
     {
         if (buildings == 0)
         {
-            currentTile.transform.GetChild(0).gameObject.SetActive(false);
-            currentTile.transform.GetChild(1).gameObject.SetActive(false);
-            currentTile.transform.GetChild(2).gameObject.SetActive(true);
+            
+            var flag = currentTile.transform.GetChild(2);
+            flag.GetComponentInChildren<Renderer>().material = playerMaterial;
+            flag.gameObject.SetActive(true);
         }
         else if (buildings == 1)
         {
-            currentTile.transform.GetChild(0).gameObject.SetActive(true);
+            var house = currentTile.transform.GetChild(0);
+            foreach (Transform child in house)
+            {
+                child.GetComponent<Renderer>().material = playerMaterial;
+            }
+            house.gameObject.SetActive(true);
+            
             currentTile.transform.GetChild(1).gameObject.SetActive(false);
             currentTile.transform.GetChild(2).gameObject.SetActive(false);
         }
         else if (buildings == 2)
         {
+            var hotel = currentTile.transform.GetChild(1);
+            hotel.GetChild(0).GetComponent<Renderer>().material = playerMaterial;
+            hotel.GetChild(1).GetComponent<Renderer>().material = playerMaterialDark;
+            
+            hotel.gameObject.SetActive(true);
+            
             currentTile.transform.GetChild(0).gameObject.SetActive(false);
-            currentTile.transform.GetChild(1).gameObject.SetActive(true);
             currentTile.transform.GetChild(2).gameObject.SetActive(false);
         }
         else return;
