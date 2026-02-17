@@ -3,6 +3,7 @@ using Mirror;
 using Steamworks;
 using TMPro;
 using Unity.VisualScripting;
+using System.Collections;
 
 public class SteamLobbyController : MonoBehaviour
 {
@@ -122,12 +123,46 @@ public class SteamLobbyController : MonoBehaviour
         currentLobbyCode = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), LobbyCodeKey);
         
         Debug.Log($"Lobiye Girildi. Host: {hostAddress}. Mirror Bağlanıyor...");
-
-        // Mirror'a hedefi göster ve Client'ı başlat
-        manager.networkAddress = hostAddress;
-        manager.StartClient();
+        
+        // // Mirror'a hedefi göster ve Client'ı başlat
+        StartCoroutine(ConnectAfterCheck(callback));
+        // manager.networkAddress = hostAddress;
+        // manager.StartClient();
     }
-    
+
+    private IEnumerator ConnectAfterCheck(LobbyEnter_t callback) 
+    {
+        Debug.Log("[LOBBY] Bağlantı kontrolü başladı...");
+        
+        // 1. Singleton beklerken sonsuz döngüye girmeyelim
+        float timeout = 5f;
+        while (NetworkManager.singleton == null && timeout > 0)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (NetworkManager.singleton == null)
+        {
+            Debug.LogError("[KRİTİK] NetworkManager bulunamadı! Singleton NULL.");
+            yield break;
+        }
+
+        // 2. Steam verisini kontrol et
+        CSteamID lobbyID = new CSteamID(callback.m_ulSteamIDLobby);
+        string hostAddress = SteamMatchmaking.GetLobbyData(lobbyID, "HostAddress");
+
+        if (string.IsNullOrEmpty(hostAddress))
+        {
+            Debug.LogError("[STEAM] HostAddress lobiden çekilemedi! Lobi verisi boş.");
+            yield break;
+        }
+
+        Debug.Log($"[BAĞLANIYOR] Adres: {hostAddress}");
+        NetworkManager.singleton.networkAddress = hostAddress;
+        NetworkManager.singleton.StartClient();
+    }
+        
 
     // --- YARDIMCI: KOD ÜRETİCİ ---
     private string GenerateRandomCode(int length)

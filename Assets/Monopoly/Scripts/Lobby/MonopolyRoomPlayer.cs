@@ -5,6 +5,7 @@ using TMPro;
 using Steamworks;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Collections;
 
 public class MonopolyRoomPlayer : NetworkRoomPlayer
 {
@@ -21,13 +22,13 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
     [SyncVar(hook = nameof(HandleSteamIdChanged))] public ulong playerSteamId;
     [SyncVar(hook = nameof(OnLobbyColorChanged))] public Color playerColor = Color.white;
 
-    private readonly List<string> charOptions = new() { "Car", "BMO", "Mija", "Darkin", "RedHatRedemption", "Monkey"};
+    private readonly List<string> charOptions = new() { "Car", "BMO", "Mija", "Darkin", "RedHatRedemption", "Monkey", "Deadpool"};
     protected Callback<AvatarImageLoaded_t> avatarImageLoaded;
-
+    
     public override void OnStartClient()
     {
         base.OnStartClient();
-
+    
         // 1. Lobi Paneline Yerleşme
         GameObject targetParent = GameObject.Find("LobbyContent");
         if (targetParent != null)
@@ -49,6 +50,10 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
             characterDropdown.ClearOptions();
             characterDropdown.AddOptions(charOptions);
             characterDropdown.RefreshShownValue();
+        }
+        if (playerSteamId != 0) 
+        {
+            GetSteamAvatar((CSteamID)playerSteamId);
         }
 
         // 4. FORCE UPDATE: Değer değişmese bile görselleri çiz
@@ -146,8 +151,19 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
 
     void HandleSteamIdChanged(ulong oldId, ulong newId) 
     { 
-        if (newId != 0) GetSteamAvatar((CSteamID)newId);
+        if (newId != 0) 
+        {
+            // Eğer UI henüz hazır değilse, bir frame bekleyip öyle çek
+            StartCoroutine(FetchAvatarWhenReady(newId));
+        }
     }
+
+    private IEnumerator FetchAvatarWhenReady(ulong id)
+    {
+        // ProfileImage referansı gelene kadar bekle
+        yield return new WaitUntil(() => profileImage != null);
+        GetSteamAvatar((CSteamID)id);
+}
 
     public void ServerForceReady()
     {

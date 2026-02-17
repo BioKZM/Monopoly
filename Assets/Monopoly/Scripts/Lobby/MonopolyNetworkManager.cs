@@ -14,15 +14,27 @@ public class MonopolyNetworkManager : NetworkRoomManager
         public string steamName;
         public ulong steamID;
     }
-    private Dictionary<int, PlayerSessionData> lobbyDataCache = new();
-    public static List<PlayerSessionData> finalLobbyPlayers = new();
+    public GameObject networkDataHelper;
+    static private Dictionary<int, PlayerSessionData> lobbyDataCache = new();
     public string currentLobbyCode;
-
-
-
     public static MonopolyNetworkManager Instance => singleton as MonopolyNetworkManager;
 
-    
+    public override void Awake() 
+    {
+        if (NetworkManager.singleton != null && NetworkManager.singleton != this) {
+            Destroy(gameObject); // Eğer zaten bir tane varsa, beni (yeni geleni) yok et
+            return;
+        }
+        base.Awake();
+    }
+
+
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+        GameObject dataHelper = Instantiate(networkDataHelper);
+        NetworkServer.Spawn(dataHelper);
+    }
     public override void OnStartHost()
     {
         base.OnStartHost();
@@ -143,13 +155,17 @@ public class MonopolyNetworkManager : NetworkRoomManager
     }
     
 
-
+    [Server]
     public void StartGameManually()
     {
-        if (!NetworkServer.active) return; // Sadece Host yapabilir
-        
-        
+        if (NetworkDataHelper.Instance == null)
+        {
+            Debug.LogError("[START_GAME_MANUALLY]NetworkDataHelper bulunamadı.");
+            return;
+        }
+
         lobbyDataCache.Clear();
+        NetworkDataHelper.Instance.finalLobbyPlayers.Clear();
         // 1. GÜVENLİK: Odadaki herkesi ZORLA 'Hazır' yap
         // Böylece Mirror "Bu adam hazır değildi" diyip piyonu unutmamazlık yapamaz.
         foreach (var player in roomSlots)
@@ -168,7 +184,7 @@ public class MonopolyNetworkManager : NetworkRoomManager
                         steamID = roomPlayer.playerSteamId
                     };
                     lobbyDataCache[player.connectionToClient.connectionId] = data;
-                    finalLobbyPlayers.Add(data);
+                    NetworkDataHelper.Instance.finalLobbyPlayers.Add(data);
 
 
                     roomPlayer.ServerForceReady();

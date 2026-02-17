@@ -75,14 +75,21 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Networking
-    [SyncVar(hook=nameof(OnTurnChanged))]
-    public int currentPlayerIndex = 0;
-    [SyncVar(hook=nameof(OnTurnCountChanged))]
-    public int turnCount = 0;
-    public readonly SyncList<PlayerScript> players = new SyncList<PlayerScript>();
+    [SyncVar(hook=nameof(OnTurnChanged))] public int currentPlayerIndex = 0;
+    
+    [SyncVar(hook=nameof(OnTurnCountChanged))] public int turnCount = 0;
+    
+    [SyncVar(hook= nameof(OnTimerChanged))] public float turnTimer = 30f;
+    
+    [SyncVar] public readonly SyncList<PlayerScript> players = new SyncList<PlayerScript>();
 
+    [SyncVar] public bool isPaused = true;
 
+    [SyncVar] public bool isGameStarted = false;
     #endregion
+
+
+
 
     #region Unity Lifecycle Methods
     void Awake()
@@ -94,8 +101,28 @@ public class GameManager : NetworkBehaviour
 
     void Update()
     {
-        Debug.Log("dice1.isStopped: "+dice1Object.isStopped);
-        Debug.Log("dice2.isStopped: "+dice2Object.isStopped);
+        if (isServer && isGameStarted && !isPaused)
+        {
+            if (turnTimer > 0)
+            {
+                turnTimer -= Time.deltaTime;
+            }
+            else
+            {
+                if (!isServer) return;
+                PlayerScript player = GetCurrentPlayer();
+
+                if (!player.hasRolledDice)
+                {
+                    ServerEndTurn();
+                }
+                else
+                {
+                    player.hasMadeDecision = true;
+                    player.hasRolledDice = true;
+                }
+            }
+        }
         // DebugGameState();
     }
     #endregion
@@ -106,6 +133,8 @@ public class GameManager : NetworkBehaviour
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            Debug.LogWarning("[GameManager] Ben yok ediliyorum!");
+
         }
         else
         {
@@ -349,6 +378,13 @@ public class GameManager : NetworkBehaviour
         eventManager.ShowBailPayment(player, amount);
     }
 
+    [ClientRpc]
+    public void RpcShowTimeUp(int playerIndex)
+    {
+        PlayerScript player = players[playerIndex];
+        eventManager.ShowTimeUp(player);
+    }
+
 
     #endregion
 
@@ -413,9 +449,16 @@ public class GameManager : NetworkBehaviour
 
 
     #region F#CK1NG NETWORKING
+    [SyncVar (hook = nameof(OnReadyCountChanged))] public int playersReportedReady = 0;
+    [SyncVar] public int expectedPlayerCount = 0;
     public void InitializeGameLocal()
     {
-        Debug.Log($"[INIT_GAME_LOCAL] Function triggered.");
+        Debug.Log($"[DEBUG] InitializeGameLocal çağrıldı. Obje: {gameObject.name}, Aktif mi: {gameObject.activeInHierarchy}");
+        if(!gameObject.activeInHierarchy) 
+        {
+            Debug.LogError("[DEBUG] GameManager aktif değil.");
+            return; 
+        }
         // 1. UIManager'ı ayağa kaldır (Referansları bağla)
         uiManager.InitializeUI();
 
@@ -430,8 +473,10 @@ public class GameManager : NetworkBehaviour
 
         // 4. Manager'ları ve oyun alanını kur
         InitializeTiles();
+
         SetupManagers();
         bankruptcyManager.InitalizeUI();
+
 
         // 5. Host isen butonu hazırla
         if (isServer && startMatchButton != null)
@@ -441,6 +486,7 @@ public class GameManager : NetworkBehaviour
             startMatchButton.interactable = false; // Herkes dolana kadar kapalı
         }
 
+        
         // 6. UI'ı AddButtonListeners ile butonlara bağla
         uiManager.AddButtonListeners();
 
@@ -453,16 +499,16 @@ public class GameManager : NetworkBehaviour
 
     public IEnumerator VerifyAndStartIllusion()
     {
-        // Panel zaten Inspector'da açık (Default: Active), o yüzden satırı sildik.
         
         bool isEverythingReady = false;
-        int expectedCount = MonopolyNetworkManager.finalLobbyPlayers.Count;
+        int expectedCount = NetworkDataHelper.Instance.finalLobbyPlayers.Count;
 
         while (!isEverythingReady)
         {
             
             // 1. Önce piyonların (PlayerScript) listeye eklenip eklenmediğini kontrol et
-            if (players.Count >= expectedCount)
+            Debug.Log($"[Illusion] - players.Count = {players.Count} & expectedCount = {expectedCount}");
+            if (players.Count >= expectedCount && expectedCount > 0)
             {
                 
                 // 3. Verilerin içeriğini check et
@@ -493,7 +539,7 @@ public class GameManager : NetworkBehaviour
                     if (NetworkClient.localPlayer)
                     {
                         var localScript = NetworkClient.localPlayer.GetComponent<PlayerScript>();
-                        Debug.Log($"[VERIFY] Player ready, netID: {NetworkClient.localPlayer.netId}");
+                        Debug.Log($"[ILLUSION] Player ready, netID: {NetworkClient.localPlayer.netId}");
                         // localScript.FindTiles();
                         localScript.CmdSetReadyStatus(true);
                     }
@@ -512,7 +558,8 @@ public class GameManager : NetworkBehaviour
     [ClientRpc]
     public void RpcBeginMatch() {
         
-        if (uiManager.loadingPanel != null) {
+        if (uiManager.loadingPanel != null) 
+        {
             uiManager.loadingPanel.SetActive(false); 
         }
         StartCoroutine(WaitForPlayersAndStartTurn(0));
@@ -520,8 +567,7 @@ public class GameManager : NetworkBehaviour
 
 
 
-    [SyncVar (hook = nameof(OnReadyCountChanged))] public int playersReportedReady = 0;
-    [SyncVar] public int expectedPlayerCount = 0;
+    
 
     [Command(requiresAuthority = false)]
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -564,6 +610,7 @@ public class GameManager : NetworkBehaviour
         // Sadece Host/Server bu butona basabilir
         if (isServer)
         {
+            isGameStarted = true;
             RpcBeginMatch();
             turnCount++;
         }
@@ -574,8 +621,12 @@ public class GameManager : NetworkBehaviour
     public void CmdRequestRoll(NetworkConnectionToClient sender = null)
     #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     {
+        Debug.Log("[GAME_MANAGER] - Roll requested from server with [command]");
         PlayerScript player = sender.identity.GetComponent<PlayerScript>();
-        if (player != turnManager.GetCurrentPlayer()) return;
+        if (player != turnManager.GetCurrentPlayer())
+        {
+            Debug.Log("[GAME_MANAGER] - Player is not current player");
+        }
 
 
         int d1 = Random.Range(1, 7);
@@ -597,6 +648,7 @@ public class GameManager : NetworkBehaviour
     [ClientRpc]
     public void RpcSpawnAndRoll(PlayerScript player, int d1, int d2)
     {
+        Debug.Log("[GAME_MANAGER] - Roll requested with [clientRpc]");
         player.hasRolledDice = true;
 
         dice1Object.isStopped = false;
@@ -610,18 +662,65 @@ public class GameManager : NetworkBehaviour
     }
     private IEnumerator CameraAnimation(PlayerScript player, int d1, int d2)
     {
+        // var cam = Camera.main;
+        // var cameraLock = cam.GetComponent<CameraPlayerLock>();
+        // if (cameraLock != null) cameraLock.isLocked = false;
+
+        // // Başlangıç değerleri
+        // Vector3 startPos = cam.transform.position;
+        // Quaternion startRot = cam.transform.rotation;
+        // float startSize = cam.orthographicSize; // Orijinal size (örn: 25)
+
+        // // Hedef değerler
+        // Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 5, -5); 
+        // float targetSize = 4f; // Burası kritik! Ne kadar küçükse o kadar yakınlaşır.
+
+        // float t = 0;
+        // float zoomInDuration = 0.4f;
+
+        // // ZOOM IN
+        // while(t < 1) {
+        //     t += Time.deltaTime / zoomInDuration;
+        //     float smoothT = t * t * (3f - 2f * t);
+
+        //     cam.transform.position = Vector3.Lerp(startPos, zoomPos, smoothT);
+        //     cam.orthographicSize = Mathf.Lerp(startSize, targetSize, smoothT); // Size'ı küçültüyoruz
+            
+        //     // Zarlara bakış açısını yumuşat
+        //     Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - cam.transform.position);
+        //     cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+        //     yield return null;
+        // }
+
+        // yield return new WaitUntil(() => dice1Object.isStopped && dice2Object.isStopped);
+        
+        // ShowDice(d1, d2);
+        // t = 0;
+        // while(t < 1) {
+        //     t += Time.deltaTime / 1.0f;
+        //     float smoothT = t * t * (3f - 2f * t);
+        //     cam.transform.position = Vector3.Lerp(zoomPos, startPos, smoothT);
+        //     cam.orthographicSize = Mathf.Lerp(targetSize, startSize, smoothT); // Size'ı büyütüyoruz
+        //     cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, startRot, smoothT);
+        //     yield return null;
+        // }
+
+        // if (cameraLock != null)
+        // {
+        //     cameraLock.SetTarget(player.transform);
+        //     cameraLock.isLocked = true;
+        // }
         var cam = Camera.main;
         var cameraLock = cam.GetComponent<CameraPlayerLock>();
-        if (cameraLock != null) cameraLock.isLocked = false;
+        if (cameraLock != null) cameraLock.enabled = false; // Script'i komple kapatmak daha güvenli
 
-        // Başlangıç değerleri
         Vector3 startPos = cam.transform.position;
         Quaternion startRot = cam.transform.rotation;
-        float startSize = cam.orthographicSize; // Orijinal size (örn: 25)
+        float startSize = cam.orthographicSize;
 
-        // Hedef değerler
-        Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 5, -5); 
-        float targetSize = 4f; // Burası kritik! Ne kadar küçükse o kadar yakınlaşır.
+        // Hedef rotasyonu döngü DIŞINDA bir kez hesaplayalım (veya tahmini bir açı verelim)
+        Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 8, -6); 
+        Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - zoomPos);
 
         float t = 0;
         float zoomInDuration = 0.4f;
@@ -629,35 +728,44 @@ public class GameManager : NetworkBehaviour
         // ZOOM IN
         while(t < 1) {
             t += Time.deltaTime / zoomInDuration;
-            float smoothT = t * t * (3f - 2f * t);
+            // Daha performanslı bir yumuşatma
+            float smoothT = Mathf.SmoothStep(0, 1, t); 
 
             cam.transform.position = Vector3.Lerp(startPos, zoomPos, smoothT);
-            cam.orthographicSize = Mathf.Lerp(startSize, targetSize, smoothT); // Size'ı küçültüyoruz
-            
-            // Zarlara bakış açısını yumuşat
-            Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - cam.transform.position);
+            cam.orthographicSize = Mathf.Lerp(startSize, 4f, smoothT);
             cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
-            yield return null;
+            yield return new WaitForFixedUpdate();
         }
 
+        // Zarların durmasını bekle
         yield return new WaitUntil(() => dice1Object.isStopped && dice2Object.isStopped);
         
+        // Zarlar durduktan sonra kısa bir süzülme süresi (Opsiyonel)
+        yield return new WaitForSeconds(0.5f);
+
         ShowDice(d1, d2);
+
+        // ZOOM OUT (startPos ve startRot'a geri dönüyoruz)
         t = 0;
         while(t < 1) {
-            t += Time.deltaTime / 1.0f;
-            float smoothT = t * t * (3f - 2f * t);
+            t += Time.deltaTime / 0.8f; // Geri dönüş biraz daha yavaş ve şık olsun
+            float smoothT = Mathf.SmoothStep(0, 1, t);
+
             cam.transform.position = Vector3.Lerp(zoomPos, startPos, smoothT);
-            cam.orthographicSize = Mathf.Lerp(targetSize, startSize, smoothT); // Size'ı büyütüyoruz
-            cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, startRot, smoothT);
+            cam.orthographicSize = Mathf.Lerp(4f, startSize, smoothT);
+            cam.transform.rotation = Quaternion.Slerp(targetRot, startRot, smoothT);
             yield return null;
         }
 
         if (cameraLock != null)
         {
+            cameraLock.enabled = true; // Script'i geri aç
             cameraLock.SetTarget(player.transform);
             cameraLock.isLocked = true;
         }
+
+
+
         turnManager.isLocked = true;
         if (NetworkServer.active)
         {
@@ -689,6 +797,8 @@ public class GameManager : NetworkBehaviour
         if (CheckWinConditions()) return;
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
         if (currentPlayerIndex == 0) turnCount++;
+        turnTimer = 30f;
+        isPaused = false;
     }
 
     void OnTurnChanged(int oldIndex, int newIndex)
@@ -705,6 +815,15 @@ public class GameManager : NetworkBehaviour
         string hexColor = ColorUtility.ToHtmlStringRGB(randomTurnColor);
         LogManager.Instance.AddLog($"\n\n<color=#{hexColor}><b>--- Tur {newValue} --- </b></color>\n\n");
         // TODO
+    }
+    void OnTimerChanged(float oldValue, float newValue)
+    {
+        int seconds = Mathf.CeilToInt(newValue);
+        uiManager.UpdateTimer(seconds, last5:false);
+        if (seconds < 5f)
+        {
+            uiManager.UpdateTimer(seconds, last5:true);
+        }
     }
 
     IEnumerator WaitForPlayersAndStartTurn(int targetIndex)
@@ -872,6 +991,14 @@ public class GameManager : NetworkBehaviour
     {
         string cardText = isChance ? cardManager.chanceData[index] : cardManager.communityData[index];
         SetupCardUI(cardText, isChance);
+    }
+
+
+    [Command(requiresAuthority = false)]
+    public void CmdSetPaused(bool state)
+    {
+        isPaused = state;
+        Debug.Log($"[GAME_MANAGER] Oyun duraklatma durumu [Command] ile değişti {state}");
     }
 
 

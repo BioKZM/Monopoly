@@ -195,6 +195,11 @@ public class EventManager : MonoBehaviour
         Enqueue(message);
         
     }
+    public void ShowTimeUp(PlayerScript player)
+    {
+        string template = "{player} oyuncusunun süresi doldu.";
+        Enqueue(BuildMessage(template, player, null, null, null));
+    }
 
 
     public void ShowCustom(string template, PlayerScript player = null, TileRuntimeData tile = null, string building = null, PlayerScript player2 = null)

@@ -12,7 +12,7 @@ public class PlayerScript : NetworkBehaviour
 
     public MonopolyGamePlayer visualData; 
 
-    [SyncVar(hook = nameof(OnMoneyChanged))] public int money = 50000; // Oyuncunun parası
+    [SyncVar(hook = nameof(OnMoneyChanged))] public int money = 20000; // Oyuncunun parası
     [SyncVar(hook = nameof(OnPlayerAllReady))] public bool isPlayerAllReady;
     
     [SyncVar] public int currentTileIndex = 0; // Oyuncunun mevcut kare indeksi
@@ -48,15 +48,16 @@ public class PlayerScript : NetworkBehaviour
         if (callback.m_steamID.m_SteamID == playerSteamId)
         {
             Debug.Log($"[STEAM] Avatar yüklendi: {playerName}");
-            GetSteamAvatar(callback.m_steamID);
+            StartCoroutine(GetSteamAvatar(callback.m_steamID));
             
             // Resim hazır olduğu için UI'ı tekrar dürtüyoruz
-            GameManager.Instance.uiManager.SetPlayersInfo(GameManager.Instance.players);
+            // GameManager.Instance.uiManager.SetPlayersInfo(GameManager.Instance.players);
         }
     }
     public override void OnStartClient()
     {
         base.OnStartClient();
+        // StartCoroutine()
         ownedTiles.Callback += OnOwnedTilesChanged;
         FindTiles();
         StartCoroutine(PrepareAndRegister());
@@ -65,23 +66,27 @@ public class PlayerScript : NetworkBehaviour
 
     public void Update()
     {
-        GameObject escPanel = GameManager.Instance.uiManager.gameObject;
-        if (escPanel != null)
+        GameObject escPanel = GameManager.Instance.uiManager.escPanel;
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
-            bool isActive = escPanel.activeSelf;
-            escPanel.SetActive(!isActive);
+            if (escPanel != null)
+            {
+                bool isActive = escPanel.activeSelf;
+                escPanel.SetActive(!isActive);
 
-            if (!isActive)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                if (!isActive)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    Cursor.visible = false;
+
+                }
             }
         }
+        
     }
     private void InitializeMaterials()
     {
@@ -118,18 +123,19 @@ public class PlayerScript : NetworkBehaviour
         playerColor = visualData.playerColor;
         playerSteamId = visualData.steamID;
         playerBackgroundIndex = visualData.backgroundIndex;
+
         InitializeMaterials();
-        GetSteamAvatar(new CSteamID(playerSteamId));
+        
+        StartCoroutine(GetSteamAvatar(new CSteamID(playerSteamId)));
         if (isLocalPlayer)
         {
             CmdRegisterToManager();
-            GameManager.Instance.InitializeGameLocal();
         }
     }
     
 
-    [Command]
-    public void CmdRegisterToManager()
+    [Command(requiresAuthority = false)]
+    public void CmdRegisterToManager(NetworkConnectionToClient sender = null)
     {
         bool alreadyExists = false;
         foreach(var player in GameManager.Instance.players)
@@ -144,7 +150,16 @@ public class PlayerScript : NetworkBehaviour
         {
             GameManager.Instance.players.Add(this);
             Debug.Log($"[SERVER] {playerName} (ID: {netId}) listeye başarıyla eklendi.");
+            TargetPlayerRegistered(sender);
+
         }
+    }
+
+    [TargetRpc]
+    private void TargetPlayerRegistered(NetworkConnection target)
+    {
+        Debug.Log("[PlayerScript] - Client side player registered. Processing init game");
+        GameManager.Instance.InitializeGameLocal();
     }
     public override void OnStopServer()
     {
@@ -183,51 +198,6 @@ public class PlayerScript : NetworkBehaviour
         }
     }
 
-
-    // public IEnumerator MoveCoroutine(int dice)
-    // {
-    //     Debug.Log($"T: {dice}");
-    //     Debug.Log($"[MOVEMENT] CurrentTileIndex - {currentTileIndex}");
-    //     isMoving = true;
-
-    //     if (currentTileIndex != 0 && NetworkServer.active)
-    //     {
-    //         tookMoneyOnStart = false; 
-    //     }
-
-    //     // int visualIndex = (currentTileIndex - dice + 40) % 40;
-    //     int targetIndex = currentTileIndex; 
-    //     Debug.Log($"[MOVEMENT] targetIndex - {targetIndex}");
-    //     for (int x = 0; x < dice; x++)
-    //     {
-    //         targetIndex = (targetIndex + 1) % 40;
-
-    //         if (isServer)
-    //         {
-    //             currentTileIndex = targetIndex;
-    //             if (currentTileIndex == 0 && !tookMoneyOnStart)
-    //             {
-    //                 money += 2000;
-    //                 tookMoneyOnStart = true;
-    //             }
-    //         }
-
-    //         Vector3 targetPos = tiles[targetIndex].transform.position + new Vector3(0, 0.5f, 0);
-    //         while (Vector3.Distance(transform.position, targetPos) > 0.01f)
-    //         {
-    //             transform.position = Vector3.MoveTowards(transform.position, targetPos, Time.deltaTime * 12f);
-    //             yield return null;
-    //         }
-    //         if (targetIndex % 10 == 0)
-    //         {
-    //             yield return StartCoroutine(RotateSmoothly(targetIndex));
-    //             // RotatePlayer();   
-    //         }
-    //     }
-    //     transform.position = tiles[currentTileIndex].transform.position + new Vector3(0, 0.5f, 0);
-    //     RotatePlayer();
-    //     isMoving = false;
-    // }
     public IEnumerator MoveCoroutine(int dice)
     {
         isMoving = true;
@@ -353,7 +323,6 @@ public class PlayerScript : NetworkBehaviour
             currentTileIndex = targetTileIndex;
         }
         RpcTeleportPlayer(currentTileIndex);
-        // transform.position = tiles[currentTileIndex].transform.position + new Vector3(0, 0.5f, 0);
     }
     public void GoToJail()
     {
@@ -405,7 +374,7 @@ public class PlayerScript : NetworkBehaviour
         {
             if (playerSteamId != 0)
             {
-                GetSteamAvatar(new CSteamID(playerSteamId));
+                StartCoroutine(GetSteamAvatar(new CSteamID(playerSteamId)));
             }
             
         }
@@ -508,12 +477,6 @@ public class PlayerScript : NetworkBehaviour
             GameManager.Instance.uiManager.SetGroup(null);
             Debug.Log("Elendin hacı, geçmiş olsun.");
         }
-        // // var panels = GameManager.Instance.uiManager.playerInfoPanels;
-        // // GameObject panelToRemove = 
-        
-        // gameObject.SetActive(false);
-        // // var index = GameManager.Instance.players.FindIndex(p => p == this);
-        // GameManager.Instance.uiManager.RemovePlayerInfoPanel(bankruptedPlayer);
     }
     
     #endregion
@@ -533,13 +496,19 @@ public class PlayerScript : NetworkBehaviour
 
 
     #region Steam Avatar Handling
-    void GetSteamAvatar(CSteamID steamId)
+    public IEnumerator GetSteamAvatar(CSteamID steamId)
     {
         int imageId = SteamFriends.GetLargeFriendAvatar(steamId);
-        if (imageId == -1) return;
+        // if (imageId == -1) return;
+        Debug.Log("[PlayerScript] - Waiting imageID");
+        yield return new WaitUntil(() => imageId != -1);
         Texture2D texture = GetSteamImageAsTexture2D(imageId);
         if (texture != null)
         {
+            Debug.Log("[PlayerScript] - Waiting UIManager initialization");
+            yield return new WaitUntil(() => GameManager.Instance.uiManager != null);
+            Debug.Log("[PlayerScript] - UIManager initialized");
+            
             steamAvatarTexture = texture;
             GameManager.Instance.uiManager.SetPlayersInfo(GameManager.Instance.players);
         }

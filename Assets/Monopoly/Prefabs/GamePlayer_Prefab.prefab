@@ -75,6 +75,7 @@ MonoBehaviour:
   - {fileID: 8713692094129238821, guid: f9197f5bf39d9ff489552dc5f4faf9bb, type: 3}
   - {fileID: 181905431612111882, guid: 360698c89c4b8d24ab077a9f3edcc868, type: 3}
   - {fileID: 1794429570713577262, guid: 69ba56e5f343dde49a0b0d71fae2f187, type: 3}
+  - {fileID: 7670509085198470379, guid: dc68ff643c7970245bd10429c588067c, type: 3}
   characterIndex: 0
   playerColor: {r: 1, g: 1, b: 1, a: 1}
   steamID: 0

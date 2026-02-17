@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
 using Mirror;
-using Unity.VisualScripting;
 
 public class TurnManager : MonoBehaviour
 {
@@ -17,6 +16,7 @@ public class TurnManager : MonoBehaviour
     #region Turn Management
     public void StartTurn()
     {
+        GameManager.Instance.CmdSetPaused(false);
         SetCameraLock(currentPlayer.transform);
         var uiElements = GameManager.Instance.GetUIElements();
         if (currentPlayer.isLocalPlayer)
@@ -33,8 +33,11 @@ public class TurnManager : MonoBehaviour
 
     public void OnRollDice()
     {
+        Debug.Log("[TurnManager] - OnRollDice triggered");
         if (currentPlayer.isLocalPlayer)
         {
+            Debug.Log("[TurnManager] - Player is Local");
+            GameManager.Instance.CmdSetPaused(true);
             GameManager.Instance.GetUIElements().rollDiceButton.enabled = false;
             GameManager.Instance.CmdRequestRoll();
         }
@@ -123,6 +126,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator HandleTileAction(int diceTotal)
     {
+        GameManager.Instance.CmdSetPaused(false);   
         TileRuntimeData currentTile = GameManager.Instance.GetRuntimeTile(currentPlayer.currentTileIndex);
         TileType tileType = currentTile.tileData.tileType;
         int currentPlayerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
@@ -145,8 +149,23 @@ public class TurnManager : MonoBehaviour
     
                 if (NetworkServer.active)
                     currentPlayer.hasMadeDecision = false;
+
+                // Satın aldığın istasyonlara tekrar geldiğin zaman
+                // orayı pas geçiyoruz.
+                if (currentTile.tileData is UoSData)
+                {
+                    currentPlayer.hasMadeDecision = true;
+                }
                 
-                yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
+                // yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
+                int startTurnIndex = GameManager.Instance.turnCount;
+                yield return new WaitUntil(() => currentPlayer.hasMadeDecision || GameManager.Instance.turnCount != startTurnIndex);
+
+                // Eğer tur değiştiği için döngüden çıktıysak, UI'ı temizle ve kaç!
+                if (GameManager.Instance.turnCount != startTurnIndex) {
+                    GameManager.Instance.HandleButtonStates(null);
+                    yield break;
+                }
             }
         }
         else if (tileType == TileType.Chance || tileType == TileType.Community)

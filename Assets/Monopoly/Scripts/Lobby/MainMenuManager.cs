@@ -18,6 +18,8 @@ public class MainMenuManager : MonoBehaviour
     public GameObject customize_Panel;
     void Start()
     {
+        Application.targetFrameRate = 60;
+
         // Host Butonu -> Lobi Kur
         host_Button.onClick.AddListener(() => 
         {

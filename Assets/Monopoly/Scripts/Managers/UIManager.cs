@@ -165,8 +165,9 @@ public class UIManager : MonoBehaviour
                     img.color = new Color(1, 1, 1, 0); 
                 }
             }
-            Image backgroundSprite = panel.GetComponent<Image>();
-            if (backgroundSprite != null)
+            
+            // 4. Kart arkaplanı güncelleme
+            if (panel.TryGetComponent<Image>(out var backgroundSprite))
             {
                 CardSkinData skin = GameManager.Instance.GetSkinByID(pScript.playerBackgroundIndex);
                 if (skin != null)
@@ -178,7 +179,7 @@ public class UIManager : MonoBehaviour
 
     // Listenin dolup dolmadığını kontrol et
         if (playerInfoPanels == null || playerInfoPanels.Count == 0) {
-            Debug.LogWarning("Paneller henüz hazır değil!");
+            Debug.LogWarning("[UI_MANAGER:181] Paneller henüz hazır değil!");
             return;
         }
         else
@@ -223,66 +224,176 @@ public class UIManager : MonoBehaviour
     public void UpdateUI()
     {
         UpdatePlayersInfo(GameManager.Instance.players);
+        SetTurnTimer();
     }
+
+    public void UpdateTimer(float time, bool last5)
+    {
+        int playerIndex = GameManager.Instance.currentPlayerIndex;
+        var timer = playerInfoPanels[playerIndex].transform.Find("Timer");
+        Image circle = timer.Find("Image").GetComponent<Image>();
+        TextMeshProUGUI timerText = timer.Find("Image/TimerText").GetComponent<TextMeshProUGUI>();
+        circle.color = last5 ? Color.red : Color.white;
+        timerText.text = time.ToString();
+        timerText.color = last5 ? Color.red : Color.white; 
+
+    }
+
+    public void SetTurnTimer()
+    {
+        int playerIndex = GameManager.Instance.currentPlayerIndex;
+        for (var x = 0; x < playerInfoPanels.Count; x++)
+        {
+            if (x != playerIndex)
+            {
+                playerInfoPanels[x].transform.Find("Timer").gameObject.SetActive(false);
+            }
+            else
+            {
+                playerInfoPanels[x].transform.Find("Timer").gameObject.SetActive(true);
+            }
+        }
+    }
+
     public void PassButton()
     {
         GameManager.Instance.CmdPassPurchase();
         HandleButtonStates(null);
     }
 
+    // public void HandleButtonStates(TileRuntimeData? tile)
+    // {
+    //     PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+    //     if (!currentPlayer.isLocalPlayer)
+    //     {
+    //         SetGroup(null);
+    //         return;
+
+    //     }
+    //     if (currentPlayer.isMoving || !GameManager.Instance.turnManager.isLocked)
+    //     {
+    //         SetGroup(null);
+    //         return;
+    //     }
+    //     if (!currentPlayer.hasRolledDice)
+    //     {
+    //         SetGroup(rollDiceGroup);
+    //         return;
+    //     }
+    //     else
+    //     {
+    //         switch (tile?.tileData.tileType)
+    //         {
+    //             case TileType.Property:
+    //                 PropertyData property = (PropertyData)tile.tileData;
+    //                 if (tile.owner == currentPlayer)
+    //                 {
+    //                     SetGroup(buildGroup, tile.hasHouse, tile.hasHotel, property:property);
+    //                 }
+    //                 else
+    //                 {
+                        
+    //                     SetGroup(propertyActionGroup, tile.hasHouse, tile.hasHotel,property:property);
+    //                 }
+    //                 break;
+    //             case TileType.Utility:
+    //             case TileType.Station:
+    //                 UoSData uoSData = (UoSData)tile.tileData;
+    //                 SetGroup(propertyActionGroup,uoS:uoSData);
+    //                 break;
+    //             case TileType.Chance:
+    //             case TileType.Community:
+    //                 SetGroup(rollDiceGroup);
+    //                 break;
+    //             case TileType.Tax:
+    //             case TileType.GoToJail:
+    //             case TileType.Corner:
+    //                 SetGroup(rollDiceGroup);
+    //                 break;
+    //             default:
+    //                 Debug.Log("[UI_MANAGER] HandleButtonStates received null");
+    //                 SetGroup(null);
+    //                 break;
+    //         }
+    //     }
+    // }
     public void HandleButtonStates(TileRuntimeData? tile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+
+        // Eğer sıra bende değilse veya yerel oyuncu değilsem UI'ı direkt kapat.
         if (!currentPlayer.isLocalPlayer)
         {
             SetGroup(null);
             return;
-
         }
+
+        // Karakter hareket ediyorsa veya sistem bir işlem için kilitliyse buton gösterme.
         if (currentPlayer.isMoving || !GameManager.Instance.turnManager.isLocked)
         {
             SetGroup(null);
             return;
         }
+
+        // ZAR ATILMADIYSA: Tek seçenek zar atmaktır.
         if (!currentPlayer.hasRolledDice)
         {
             SetGroup(rollDiceGroup);
+            return; 
+        }
+        
+        // ZAR ATILDIYSA AMA HENÜZ KARAR VERİLMEDİYSE:
+        // tile null ise (boş geçilen kareler) veya karar zaten verildiyse UI'ı kapat.
+        if (currentPlayer.hasMadeDecision || tile == null)
+        {
+            SetGroup(null);
             return;
         }
-        switch (tile?.tileData.tileType)
+        // Buraya geldiğimizde biliyoruz ki: Sıra bizde, hareket bitti, zar atıldı ve karar verilmedi.
+        switch (tile.tileData.tileType)
         {
             case TileType.Property:
                 PropertyData property = (PropertyData)tile.tileData;
+                
                 if (tile.owner == currentPlayer)
                 {
-                    SetGroup(buildGroup, tile.hasHouse, tile.hasHotel, property:property);
+                    // Kendi mülkümüzse bina dikme panelini aç
+                    SetGroup(buildGroup, tile.hasHouse, tile.hasHotel, property: property);
+                }
+                else if (tile.owner == null)
+                {
+                    // Sahipsizse satın alma panelini aç
+                    SetGroup(propertyActionGroup, tile.hasHouse, tile.hasHotel, property: property);
                 }
                 else
                 {
-                    
-                    SetGroup(propertyActionGroup, tile.hasHouse, tile.hasHotel,property:property);
+                    // Başkasınınsa kira ödeme
+                    SetGroup(null); 
                 }
                 break;
+
             case TileType.Utility:
             case TileType.Station:
                 UoSData uoSData = (UoSData)tile.tileData;
-                SetGroup(propertyActionGroup,uoS:uoSData);
+                if (tile.owner == null)
+                    SetGroup(propertyActionGroup, uoS: uoSData);
+                else
+                    SetGroup(null);
                 break;
+
+            // Özel karelerde karar mekanizması yoksa (otomatikse) null dön.
             case TileType.Chance:
             case TileType.Community:
-                SetGroup(rollDiceGroup);
-                break;
             case TileType.Tax:
             case TileType.GoToJail:
             case TileType.Corner:
-                SetGroup(rollDiceGroup);
+                SetGroup(null); 
                 break;
+
             default:
-                Debug.Log("Received null");
                 SetGroup(null);
                 break;
         }
-
     }
     public void ShowPropertyDetails(string tileName, TileRuntimeData data)
     {
