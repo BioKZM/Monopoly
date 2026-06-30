@@ -26,6 +26,17 @@ public class NetworkQuitHandler : MonoBehaviour
     }
     public void OnQuitGameButtonClicked()
     {
+        if (NetworkServer.active && NetworkClient.isConnected)
+        {
+            NetworkManager.singleton.StopHost();
+        }
+        else if (NetworkClient.isConnected)
+        {
+            NetworkClient.Disconnect();
+            NetworkManager.singleton.StopClient();
+        }
+
+
         Application.Quit();
     }
 }

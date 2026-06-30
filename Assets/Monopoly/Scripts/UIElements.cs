@@ -28,6 +28,7 @@ public struct UIElements
     public GameObject escPanel;
     public Button returnToMainMenuButton;
     public Button quitGameButton;
-    // public GameObject logsWindow;
-    // public Button openLogsButton;
+    public GameObject console;
+    public GameObject consoleInputField;
+    public GameObject consoleContent;
 } 

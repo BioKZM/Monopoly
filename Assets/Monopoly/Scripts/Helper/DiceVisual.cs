@@ -71,35 +71,6 @@ public class DiceVisual : MonoBehaviour
         transform.rotation = targetRotation;
         isStopped = true;
     }
-    
-    // private IEnumerator RollRoutine()
-    // {
-    //     float elapsed = 0;
-        
-    //     while (elapsed < rollDuration)
-    //     {
-    //         // Rastgele eksenlerde çılgınca döndür
-    //         transform.Rotate(new Vector3(Random.value, Random.value, Random.value) * spinSpeed * Time.deltaTime);
-    //         elapsed += Time.deltaTime;
-    //         yield return null;
-    //     }
-
-    //     // Döndürme bitti, şimdi "Sihirli" şekilde düzelme evresi
-    //     isRolling = false;
-        
-    //     float settleElapsed = 0;
-    //     Quaternion startRot = transform.rotation;
-
-    //     while (settleElapsed < 0.5f) // Yarım saniyede "çat" diye düzel
-    //     {
-    //         settleElapsed += Time.deltaTime;
-    //         transform.rotation = Quaternion.Slerp(startRot, targetRotation, settleElapsed / 0.5f);
-    //         yield return null;
-    //     }
-
-    //     transform.rotation = targetRotation;
-    //     isStopped = true;
-    // }
 
     private Quaternion GetRotationFromValue(int value)
     {

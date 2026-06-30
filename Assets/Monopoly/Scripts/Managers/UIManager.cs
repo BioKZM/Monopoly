@@ -19,8 +19,9 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI loadingText;
     public Button returnToMainMenuButton;
     public Button quitGameButton;
-    // public GameObject logsWindow;
-    // public Button openLogsButton;
+    public GameObject console;
+    public GameObject consoleInputField;
+    public GameObject consoleContent;
     public GameObject startGameButton;
     private bool isDrawerOpen = false;
     public List<GameObject> playerInfoPanels = new();
@@ -62,7 +63,8 @@ public class UIManager : MonoBehaviour
         escPanel = uiElements.escPanel;
         returnToMainMenuButton = uiElements.returnToMainMenuButton;
         quitGameButton = uiElements.quitGameButton;
-
+        console = uiElements.console;
+        consoleInputField = uiElements.consoleInputField;
 
         SetupDrawer();
     }
@@ -216,6 +218,7 @@ public class UIManager : MonoBehaviour
             playerInfoPanels[x].transform.Find("InfoPanel").Find("PlayerMoney").Find("PNText").GetComponent<TextMeshProUGUI>().text = FormatMoney(players[x].money);
         }
     }
+
     public string FormatMoney(int amount)
     {
         return string.Format("{0:N0}₺", amount);
@@ -261,62 +264,6 @@ public class UIManager : MonoBehaviour
         HandleButtonStates(null);
     }
 
-    // public void HandleButtonStates(TileRuntimeData? tile)
-    // {
-    //     PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
-    //     if (!currentPlayer.isLocalPlayer)
-    //     {
-    //         SetGroup(null);
-    //         return;
-
-    //     }
-    //     if (currentPlayer.isMoving || !GameManager.Instance.turnManager.isLocked)
-    //     {
-    //         SetGroup(null);
-    //         return;
-    //     }
-    //     if (!currentPlayer.hasRolledDice)
-    //     {
-    //         SetGroup(rollDiceGroup);
-    //         return;
-    //     }
-    //     else
-    //     {
-    //         switch (tile?.tileData.tileType)
-    //         {
-    //             case TileType.Property:
-    //                 PropertyData property = (PropertyData)tile.tileData;
-    //                 if (tile.owner == currentPlayer)
-    //                 {
-    //                     SetGroup(buildGroup, tile.hasHouse, tile.hasHotel, property:property);
-    //                 }
-    //                 else
-    //                 {
-                        
-    //                     SetGroup(propertyActionGroup, tile.hasHouse, tile.hasHotel,property:property);
-    //                 }
-    //                 break;
-    //             case TileType.Utility:
-    //             case TileType.Station:
-    //                 UoSData uoSData = (UoSData)tile.tileData;
-    //                 SetGroup(propertyActionGroup,uoS:uoSData);
-    //                 break;
-    //             case TileType.Chance:
-    //             case TileType.Community:
-    //                 SetGroup(rollDiceGroup);
-    //                 break;
-    //             case TileType.Tax:
-    //             case TileType.GoToJail:
-    //             case TileType.Corner:
-    //                 SetGroup(rollDiceGroup);
-    //                 break;
-    //             default:
-    //                 Debug.Log("[UI_MANAGER] HandleButtonStates received null");
-    //                 SetGroup(null);
-    //                 break;
-    //         }
-    //     }
-    // }
     public void HandleButtonStates(TileRuntimeData? tile)
     {
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
@@ -398,16 +345,35 @@ public class UIManager : MonoBehaviour
     public void ShowPropertyDetails(string tileName, TileRuntimeData data)
     {
 
+        
         if (detailPanel != null)
         {
+            detailPanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
             detailPanel.gameObject.SetActive(true);
+
             var panel = detailPanel.transform.GetChild(0);
+            foreach (Transform child in panel.transform)
+            {
+                child.gameObject.SetActive(false);
+            }
+            
             var card = panel.transform.Find(tileName);
             card.gameObject.SetActive(true);
-            Debug.Log(card.transform.GetChild(1).name);
             card.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = data.owner != null ? data.owner.playerName : null ?? "";
+
+
+            GameObject tile = GameManager.Instance.propertyTiles[data.tileData.tileID];
+            GameManager.Instance.turnManager.SetCameraLock(tile.transform, showAura: true, tileColor: GameManager.Instance.GetTileColor(data.tileData));
+
+            // Color tileColor = GameManager.Instance.GetTileColor(data.tileData);
+            // ShowTileAura(tile.transform,tileColor);
+            // StartCoroutine(GameManager.Instance.SmoothCameraMove(tile.transform.position + Vector3.up*50, tile.transform.rotation,0f,1f));
         }
     }
+    
+
+    
+
     
     public void CloseDetailPanel()
     {
@@ -443,6 +409,7 @@ public class UIManager : MonoBehaviour
         var textComponent = card.transform.Find("CardText").GetComponent<TMPro.TextMeshProUGUI>();
         textComponent.text = cardText;
     }
+
     public void RemovePlayerInfoPanel(PlayerScript playerToRemove)
     {
         foreach (var cardObj in playerInfoPanels)
@@ -451,7 +418,6 @@ public class UIManager : MonoBehaviour
             if (card.owner == playerToRemove)
             {
                 cardObj.SetActive(false); // Kartı gizle
-                // İstersen kartı listeden de silebilirsin ama SetActive(false) yeterli olur
                 break; 
             }
         }
@@ -538,11 +504,18 @@ public class UIManager : MonoBehaviour
     }
 
 
+    public void BankruptPlayer(PlayerScript player)
+    {
+        var playerIndex = GameManager.Instance.players.IndexOf(player);
+        if (playerIndex < 0 || playerIndex >= playerInfoPanels.Count) return;
+        playerInfoPanels[playerIndex].GetComponent<Button>().interactable = false;
+        var bankruptImage = playerInfoPanels[playerIndex].transform.Find("BankruptImage").gameObject;
+        bankruptImage.SetActive(true);
+    }
 
 
 
-
-    public void SetGroup(CanvasGroup activeGroup, bool hasHouse = false, bool hasHotel = false, PropertyData? property = null, UoSData? uoS = null)
+    public void SetGroup(CanvasGroup? activeGroup, bool hasHouse = false, bool hasHotel = false, PropertyData? property = null, UoSData? uoS = null)
     {
         Debug.Log($"Gelen grup: {activeGroup}");
         PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
@@ -643,6 +616,7 @@ public class UIManager : MonoBehaviour
     public void AddButtonListeners()
     {
         var uiElements = GameManager.Instance.GetUIElements();
+
         uiElements.rollDiceButton.onClick.AddListener(() => GameManager.Instance.GetTurnManager().OnRollDice());
         uiElements.buyButton.onClick.AddListener(() => GameManager.Instance.GetPropertyManager().BuyTile(0));
         uiElements.buyHouseButton.onClick.AddListener(() => GameManager.Instance.GetPropertyManager().BuyTile(1));
@@ -657,9 +631,36 @@ public class UIManager : MonoBehaviour
             StopAllCoroutines();
             StartCoroutine(AnimateDrawer(0.3f));
         });
+        uiElements.consoleInputField.GetComponent<TMP_InputField>().onSubmit.AddListener(OnSubmitConsoleCommand);
 
 
 
     }
+
+    public void OnSubmitConsoleCommand(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return;
+
+        GameManager.Instance.CmdExecuteDebugCommand(input);
+        consoleInputField.GetComponent<TMP_InputField>().text = "";
+        consoleInputField.GetComponent<TMP_InputField>().ActivateInputField();
+    }
+
+    public void AppendToConsole(string message)
+    {
+        // 1. Template'den yeni bir tane üret
+        TMP_Text newLog = Instantiate(GameManager.Instance.logManager.logEntryPrefab, consoleContent.transform);
+        newLog.text = message;
+        newLog.gameObject.SetActive(true);
+
+        // 2. En aşağıya ekle
+        newLog.transform.SetAsLastSibling();
+
+        // 3. Otomatik kaydırma (Hemen aşağıya odaklan)
+        Canvas.ForceUpdateCanvases();
+        // scrollRect.verticalNormalizedPosition = 0f;
+    }
+
+
 
 } 

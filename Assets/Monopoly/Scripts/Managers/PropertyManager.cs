@@ -171,8 +171,14 @@ public class PropertyManager : NetworkBehaviour
             .ToList();
         return playerOwnedTiles;
     }
+
+    public int GetPlayerUoSCount(PlayerScript player)
+    {
+        int count = tileRuntimeList
+            .Count(tile => tile.owner == player && tile.tileData is UoSData);
+        return count;
+    }
     #endregion
 
-        #region UI Management
-    #endregion
+
 } 

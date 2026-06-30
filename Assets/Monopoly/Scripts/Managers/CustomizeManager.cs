@@ -4,10 +4,10 @@ using UnityEngine.UI;
 
 public class CustomizeManager : MonoBehaviour
 {
-    public List<CardSkinData> allSkins; // Editörden 40 taneyi buraya sürükle
+    public List<CardSkinData> allSkins;
     public GameObject cardPrefab; // Yukarıdaki prefab
     public Transform contentParent;
-    public Image previewCardImage;     // ScrollView Content'i
+    public Image previewCardImage;
 
     void Start()
     {
@@ -16,6 +16,12 @@ public class CustomizeManager : MonoBehaviour
             GameObject go = Instantiate(cardPrefab, contentParent);
             go.transform.localScale = new Vector3(2f, 2f, 2f);
             go.GetComponent<CardSkinHandler>().Setup(skin, this);
+        }
+        int savedSkinID = PlayerPrefs.GetInt("SelectedCardSkin", 0);
+        CardSkinData selectedData = allSkins.Find(x => x.skinID == savedSkinID);
+        if (selectedData != null)
+        {
+            previewCardImage.sprite = selectedData.backgroundSprite; 
         }
     }
 

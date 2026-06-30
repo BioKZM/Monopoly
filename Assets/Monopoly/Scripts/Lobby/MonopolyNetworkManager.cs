@@ -13,6 +13,7 @@ public class MonopolyNetworkManager : NetworkRoomManager
         public Color playerColor;
         public string steamName;
         public ulong steamID;
+        public int backgroundIndex;
     }
     public GameObject networkDataHelper;
     static private Dictionary<int, PlayerSessionData> lobbyDataCache = new();
@@ -145,6 +146,7 @@ public class MonopolyNetworkManager : NetworkRoomManager
                 visualScript.playerColor = data.playerColor;
                 visualScript.steamID = data.steamID;
                 visualScript.steamName = data.steamName;
+                visualScript.backgroundIndex = data.backgroundIndex;
 
                 Debug.Log($"[ABİN GELDİ YARRAM] {data.steamName} için piyon hazırlandı. Index: {data.characterIndex}, Renk: {data.playerColor}");
                 
@@ -181,7 +183,8 @@ public class MonopolyNetworkManager : NetworkRoomManager
                         characterIndex = roomPlayer.characterIndex,
                         playerColor = roomPlayer.playerColor,
                         steamName = roomPlayer.playerName,
-                        steamID = roomPlayer.playerSteamId
+                        steamID = roomPlayer.playerSteamId,
+                        backgroundIndex = roomPlayer.backgroundIndex,
                     };
                     lobbyDataCache[player.connectionToClient.connectionId] = data;
                     NetworkDataHelper.Instance.finalLobbyPlayers.Add(data);

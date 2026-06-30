@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class CloseDetailScript : MonoBehaviour
 {
@@ -17,24 +18,30 @@ public class CloseDetailScript : MonoBehaviour
     {
         // Mevcut butonun GameObject'i
         GameObject current = gameObject;
-        Debug.Log(current.name);
+        
         // Parent
         Transform parent = current.transform.parent;
-        Debug.Log(parent.name);
 
         // Parent'ın parent'ı
         Transform grandParent = parent?.parent.parent;
-        Debug.Log(grandParent.name);
 
         // Her ikisini de devre dışı bırak
         if (parent != null)
         {
+            PlayerScript currentPlayer = GameManager.Instance.GetCurrentPlayer();
+            // StartCoroutine(GameManager.Instance.SmoothCameraMove(resetCamera:true));
+            var cam = Camera.main;
+            var cameraLock = cam.GetComponent<CameraPlayerLock>();
+            if (cameraLock != null) cameraLock.enabled = true;
+            GameManager.Instance.turnManager.SetCameraLock(currentPlayer.transform);
             parent.gameObject.SetActive(false);
         }
 
         if (grandParent != null)
         {
             grandParent.gameObject.SetActive(false);
+            grandParent.GetComponent<Image>().color = new Color(0,0,0,0.972549f);
+            
         }
     }
     public void CloseCardUI()
@@ -49,6 +56,7 @@ public class CloseDetailScript : MonoBehaviour
         if (grandParent != null)
         {
             grandParent.gameObject.SetActive(false);
+            
         }
     }
 }

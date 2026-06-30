@@ -6,6 +6,7 @@ using Mirror;
 using Steamworks;
 using Unity.VisualScripting;
 
+
 public class PlayerScript : NetworkBehaviour
 {
     private List<GameObject> tiles = new();
@@ -35,6 +36,7 @@ public class PlayerScript : NetworkBehaviour
     public Material baseMaterial;
     public Material playerMaterial;
     public Material playerMaterialDark;
+    public bool isCameraTopDown = false;
     
     protected Callback<AvatarImageLoaded_t> avatarImageLoaded;
 
@@ -50,8 +52,6 @@ public class PlayerScript : NetworkBehaviour
             Debug.Log($"[STEAM] Avatar yüklendi: {playerName}");
             StartCoroutine(GetSteamAvatar(callback.m_steamID));
             
-            // Resim hazır olduğu için UI'ı tekrar dürtüyoruz
-            // GameManager.Instance.uiManager.SetPlayersInfo(GameManager.Instance.players);
         }
     }
     public override void OnStartClient()
@@ -66,28 +66,48 @@ public class PlayerScript : NetworkBehaviour
 
     public void Update()
     {
-        GameObject escPanel = GameManager.Instance.uiManager.escPanel;
+        if (!isLocalPlayer) return;
+
+        // ESC
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            GameObject escPanel = GameManager.Instance.uiManager.escPanel;
             if (escPanel != null)
             {
                 bool isActive = escPanel.activeSelf;
                 escPanel.SetActive(!isActive);
-
-                if (!isActive)
-                {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                }
-                else
-                {
-                    Cursor.visible = false;
-
-                }
             }
         }
         
+        // Camera Control
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            isCameraTopDown = !isCameraTopDown;
+            if (isCameraTopDown)
+            {
+                GameObject topDownCameraPoint = GameManager.Instance.cameraTopDownPoint;
+                StartCoroutine(GameManager.Instance.SmoothCameraMove(topDownCameraPoint.transform.position,topDownCameraPoint.transform.rotation,50f, 1f));
+            }
+            else
+            {
+                StartCoroutine(GameManager.Instance.SmoothCameraMove(resetCamera:true));
+                GameManager.Instance.turnManager.SetCameraLock(GameManager.Instance.GetCurrentPlayer().transform);
+            }
+        }
+
+        // Console
+        if (Input.GetKeyDown(KeyCode.DoubleQuote) || Input.GetKeyDown(KeyCode.BackQuote) || Input.GetKeyDown(KeyCode.Quote))
+        {
+            GameObject console = GameManager.Instance.uiManager.console;
+            if (console != null)
+            {
+                bool isActive = console.activeSelf;
+                console.SetActive(!isActive);
+            }
+        }
     }
+
+
     private void InitializeMaterials()
     {
         if (baseMaterial == null) return;
@@ -164,7 +184,9 @@ public class PlayerScript : NetworkBehaviour
     public override void OnStopServer()
     {
         base.OnStopServer();
-        GameManager.Instance.players.Remove(this);
+        // GameManager.Instance.players.Remove(this);
+        this.bankrupted = true;
+        
     }
 
     public void FindTiles()
@@ -424,6 +446,7 @@ public class PlayerScript : NetworkBehaviour
         
         RpcRemovePlayerFromGame();
     }
+
     [ClientRpc]
     public void RpcOnPropertySold(int tileIndex)
     {
@@ -461,16 +484,16 @@ public class PlayerScript : NetworkBehaviour
     [ClientRpc]
     public void RpcRemovePlayerFromGame()
     {
-        GameManager.Instance.uiManager.RemovePlayerInfoPanel(this);
+        GameManager.Instance.uiManager.BankruptPlayer(this);
     
         // Görseli gizle
         this.gameObject.SetActive(false); 
-        
+        this.bankrupted = true;
         // Listeden güvenli bir şekilde çıkar
-        if (GameManager.Instance.players.Contains(this))
-        {
-            GameManager.Instance.players.Remove(this);
-        }
+        // if (GameManager.Instance.players.Contains(this))
+        // {
+        //     GameManager.Instance.players.Remove(this);
+        // }
         if (isLocalPlayer)
         {
             // Butonları tamamen kapat ki hayalet gibi oynamaya devam etmeyeyim

@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class CameraPlayerLock : MonoBehaviour
@@ -52,4 +53,6 @@ public class CameraPlayerLock : MonoBehaviour
     {
         target = newTarget;
     }
+
+    
 }

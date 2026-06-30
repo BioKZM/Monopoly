@@ -6,6 +6,9 @@ using TMPro;
 using Mirror;
 using System.Linq;
 using System.Collections;
+using System;
+using Random = UnityEngine.Random;
+
 
 public class GameManager : NetworkBehaviour
 {
@@ -71,6 +74,12 @@ public class GameManager : NetworkBehaviour
     public DiceVisual dice2Object;
     public Transform diceAreaTransform;
     public TextMeshProUGUI turnCountText;
+    public GameObject cameraTopDownPoint;
+    public Transform cameraStartingPoint;
+    public GameObject console;
+    public GameObject consoleInputField;
+    public GameObject consoleContent;
+    public GameObject tileAura;
     
     #endregion
 
@@ -106,21 +115,33 @@ public class GameManager : NetworkBehaviour
             if (turnTimer > 0)
             {
                 turnTimer -= Time.deltaTime;
-            }
-            else
-            {
-                if (!isServer) return;
+                
                 PlayerScript player = GetCurrentPlayer();
 
-                if (!player.hasRolledDice)
+                if (turnTimer <= 20f && !player.hasRolledDice)
                 {
-                    ServerEndTurn();
+                    // Oyuncu hala zar atmadıysa server otomatik atsın
+                    // rollDiceButton.onClick.Invoke();
+                    CmdSetPaused(true);
+                    ServerForceDiceRoll(player);
+
+                    // CmdSetPaused(true);
+                    // GetUIElements().rollDiceButton.enabled = false;
+                    // CmdRequestRoll();
+
+                    // player.hasRolledDice = true;
                 }
-                else
-                {
-                    player.hasMadeDecision = true;
-                    player.hasRolledDice = true;
-                }
+            }
+
+            else
+            {
+                // if (!isServer) return;
+                
+                PlayerScript player = GetCurrentPlayer();
+
+                player.hasMadeDecision = true;
+                player.hasRolledDice = true;
+                ServerEndTurn();
             }
         }
         // DebugGameState();
@@ -281,8 +302,9 @@ public class GameManager : NetworkBehaviour
             loadingText = loadingText,
             startGameButton = startGameButton,
             escPanel = escPanel,
-            // logsWindow = logsWindow,
-            // openLogsButton = openLogsButton,
+            console = console,
+            consoleInputField = consoleInputField,
+            consoleContent = consoleContent,
 
 
         };
@@ -410,40 +432,6 @@ public class GameManager : NetworkBehaviour
         
     }
 
-    #region Debug
-    // private void DebugGameState()
-    // {
-    //     // Debug.Log($"Current Player: {GetCurrentPlayer().name} \n Jail Status: {GetCurrentPlayer().isInJail}");
-    //     if (Input.GetKeyDown(KeyCode.Space))
-    //     {
-    //         GetCurrentPlayer().money = -1000;
-    //         foreach (var tile in propertyManager.tileRuntimeList)
-    //         {
-    //             Debug.Log(tile.tileData.tileName);
-    //             Debug.Log(tile.owner);
-    //             // Debug.Log(tile.houseCount);
-    //             Debug.Log(tile.hasHotel);
-    //         }
-    //     }
-    //     if (Input.GetKeyDown(KeyCode.KeypadEnter))
-    //     {
-    //         Debug.Log(GetCurrentPlayer().money);
-    //         Debug.Log(GetCurrentPlayer().name);
-    //     }
-    //     if (Input.GetKeyDown(KeyCode.Keypad1))
-    //     {
-    //         propertyManager.GiveAllTilesToPlayer(GetCurrentPlayer());
-    //     }
-    //     if (Input.GetKeyDown(KeyCode.Keypad2))
-    //     {
-    //         GetCurrentPlayer().money -= 9999999;
-    //     }
-    //     if (Input.GetKeyDown(KeyCode.Keypad3))
-    //     {
-    //         // turnManager.handDeterminedDice = handDeterminedDice_;
-    //     }
-    // }
-    #endregion
 
 
 
@@ -601,7 +589,7 @@ public class GameManager : NetworkBehaviour
         if (startMatchButton != null)
         {
             startMatchButton.interactable = status;
-            // İstersen burada butonu yanıp söndürebilirsin "BAS HADİ" diye
+           
         }
     }
     public void OnStartButtonClick()
@@ -633,17 +621,19 @@ public class GameManager : NetworkBehaviour
         int d2 = Random.Range(1, 7);
         RpcSpawnAndRoll(player,d1,d2);
 
-        // if (player.isInJail)
-        // {
-        //     turnManager.ExecuteJailLogic(player, d1, d2);
-        // }
-        // else
-        // {
-        //     RpcBroadcastMovement(d1 + d2, d1 , d2);
-        // }
-
-
     }
+
+
+
+    [Server]
+    public void ServerForceDiceRoll(PlayerScript player)
+    {
+        
+        int d1 = Random.Range(1, 7);
+        int d2 = Random.Range(1, 7);
+        RpcSpawnAndRoll(player,d1,d2);
+    }
+
 
     [ClientRpc]
     public void RpcSpawnAndRoll(PlayerScript player, int d1, int d2)
@@ -662,80 +652,22 @@ public class GameManager : NetworkBehaviour
     }
     private IEnumerator CameraAnimation(PlayerScript player, int d1, int d2)
     {
+
         // var cam = Camera.main;
         // var cameraLock = cam.GetComponent<CameraPlayerLock>();
-        // if (cameraLock != null) cameraLock.isLocked = false;
+        // if (cameraLock != null) cameraLock.enabled = false; // Script'i komple kapatmak daha güvenli
 
-        // // Başlangıç değerleri
         // Vector3 startPos = cam.transform.position;
         // Quaternion startRot = cam.transform.rotation;
-        // float startSize = cam.orthographicSize; // Orijinal size (örn: 25)
+        // float startSize = cam.orthographicSize;
 
-        // // Hedef değerler
-        // Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 5, -5); 
-        // float targetSize = 4f; // Burası kritik! Ne kadar küçükse o kadar yakınlaşır.
+        // // Hedef rotasyonu döngü DIŞINDA bir kez hesaplayalım (veya tahmini bir açı verelim)
+        // Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 8, -6); 
+        // Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - zoomPos);
 
-        // float t = 0;
-        // float zoomInDuration = 0.4f;
+        // Kamerayı zarlara kilitle
+        turnManager.SetCameraLock(diceAreaTransform);
 
-        // // ZOOM IN
-        // while(t < 1) {
-        //     t += Time.deltaTime / zoomInDuration;
-        //     float smoothT = t * t * (3f - 2f * t);
-
-        //     cam.transform.position = Vector3.Lerp(startPos, zoomPos, smoothT);
-        //     cam.orthographicSize = Mathf.Lerp(startSize, targetSize, smoothT); // Size'ı küçültüyoruz
-            
-        //     // Zarlara bakış açısını yumuşat
-        //     Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - cam.transform.position);
-        //     cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
-        //     yield return null;
-        // }
-
-        // yield return new WaitUntil(() => dice1Object.isStopped && dice2Object.isStopped);
-        
-        // ShowDice(d1, d2);
-        // t = 0;
-        // while(t < 1) {
-        //     t += Time.deltaTime / 1.0f;
-        //     float smoothT = t * t * (3f - 2f * t);
-        //     cam.transform.position = Vector3.Lerp(zoomPos, startPos, smoothT);
-        //     cam.orthographicSize = Mathf.Lerp(targetSize, startSize, smoothT); // Size'ı büyütüyoruz
-        //     cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, startRot, smoothT);
-        //     yield return null;
-        // }
-
-        // if (cameraLock != null)
-        // {
-        //     cameraLock.SetTarget(player.transform);
-        //     cameraLock.isLocked = true;
-        // }
-        var cam = Camera.main;
-        var cameraLock = cam.GetComponent<CameraPlayerLock>();
-        if (cameraLock != null) cameraLock.enabled = false; // Script'i komple kapatmak daha güvenli
-
-        Vector3 startPos = cam.transform.position;
-        Quaternion startRot = cam.transform.rotation;
-        float startSize = cam.orthographicSize;
-
-        // Hedef rotasyonu döngü DIŞINDA bir kez hesaplayalım (veya tahmini bir açı verelim)
-        Vector3 zoomPos = diceAreaTransform.position + new Vector3(0, 8, -6); 
-        Quaternion targetRot = Quaternion.LookRotation(diceAreaTransform.position - zoomPos);
-
-        float t = 0;
-        float zoomInDuration = 0.4f;
-
-        // ZOOM IN
-        while(t < 1) {
-            t += Time.deltaTime / zoomInDuration;
-            // Daha performanslı bir yumuşatma
-            float smoothT = Mathf.SmoothStep(0, 1, t); 
-
-            cam.transform.position = Vector3.Lerp(startPos, zoomPos, smoothT);
-            cam.orthographicSize = Mathf.Lerp(startSize, 4f, smoothT);
-            cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
-            yield return new WaitForFixedUpdate();
-        }
 
         // Zarların durmasını bekle
         yield return new WaitUntil(() => dice1Object.isStopped && dice2Object.isStopped);
@@ -743,34 +675,27 @@ public class GameManager : NetworkBehaviour
         // Zarlar durduktan sonra kısa bir süzülme süresi (Opsiyonel)
         yield return new WaitForSeconds(0.5f);
 
+        // Zar sonuçlarını event olarak göster.
         ShowDice(d1, d2);
 
-        // ZOOM OUT (startPos ve startRot'a geri dönüyoruz)
-        t = 0;
-        while(t < 1) {
-            t += Time.deltaTime / 0.8f; // Geri dönüş biraz daha yavaş ve şık olsun
-            float smoothT = Mathf.SmoothStep(0, 1, t);
+        // Kamerayı tekrardan oyuncuya kitle
+        turnManager.SetCameraLock(player.transform);
 
-            cam.transform.position = Vector3.Lerp(zoomPos, startPos, smoothT);
-            cam.orthographicSize = Mathf.Lerp(4f, startSize, smoothT);
-            cam.transform.rotation = Quaternion.Slerp(targetRot, startRot, smoothT);
-            yield return null;
-        }
-
-        if (cameraLock != null)
+        // Eğer kamera zaten bir oyuncuya kitliyse, diğer oyuncuların kameralarını da güncelle
+        foreach (var p in turnManager.players)
         {
-            cameraLock.enabled = true; // Script'i geri aç
-            cameraLock.SetTarget(player.transform);
-            cameraLock.isLocked = true;
+            if (!p.isCameraTopDown)
+            {
+                turnManager.SetCameraLock(player.transform);
+            }
         }
 
-
-
+        // Hem arsa alıp hem hareket edemesin diye diğer işlemler kilitli.
         turnManager.isLocked = true;
+
+        // Bu bloğu herkeste çalıştırmak yerine sadece server tarafında işlem yaptırıp daha sonrasında bunu diğer client'lara senkronize ediyoruz.
         if (NetworkServer.active)
         {
-        
-
             if (player.isInJail)
             {
                 turnManager.ExecuteJailLogic(player, d1, d2);
@@ -796,25 +721,28 @@ public class GameManager : NetworkBehaviour
     {
         if (CheckWinConditions()) return;
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
+        if (players[currentPlayerIndex].bankrupted)
+        {
+            
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
+            
+        }
         if (currentPlayerIndex == 0) turnCount++;
         turnTimer = 30f;
         isPaused = false;
+        turnManager.isLocked = false;
     }
 
     void OnTurnChanged(int oldIndex, int newIndex)
     {
         StartCoroutine(WaitForPlayersAndStartTurn(newIndex));
-        // turnManager.currentPlayer = turnManager.players[newIndex];
-        // turnManager.UpdateUI();
-        // turnManager.StartTurn();
+
     }
     void OnTurnCountChanged(int oldValue, int newValue)
     {
-        // turnCountText.text = "Tur " + newValue;
         Color randomTurnColor = Color.HSVToRGB(Random.value, 0.7f, 0.9f);
         string hexColor = ColorUtility.ToHtmlStringRGB(randomTurnColor);
         LogManager.Instance.AddLog($"\n\n<color=#{hexColor}><b>--- Tur {newValue} --- </b></color>\n\n");
-        // TODO
     }
     void OnTimerChanged(float oldValue, float newValue)
     {
@@ -879,9 +807,11 @@ public class GameManager : NetworkBehaviour
     }
 
     [Command (requiresAuthority = false)]
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    
     public void CmdProcessPurchase(int buildings, int tileIndex, NetworkConnectionToClient sender = null)
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+    
+    #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     {
         PlayerScript player = sender.identity.GetComponent<PlayerScript>();
         if (player != turnManager.GetCurrentPlayer()) return;
@@ -1003,4 +933,219 @@ public class GameManager : NetworkBehaviour
 
 
     #endregion
+
+    public IEnumerator SmoothCameraMove(Vector3 targetPos, Quaternion targetRot, float targetSize, float duration)
+    {
+        var cam = Camera.main;
+        var cameraLock = cam.GetComponent<CameraPlayerLock>();
+        if (cameraLock != null) cameraLock.enabled = false; // Script'i komple kapatmak daha güvenli
+        Vector3 startPos = cam.transform.position;
+        Quaternion startRot = cam.transform.rotation;
+        float startSize = cam.orthographicSize;
+
+        float t = 0;
+        while (t < 1)
+        {
+            t += Time.deltaTime / duration;
+            float smoothT = Mathf.SmoothStep(0, 1, t);
+
+            cam.transform.position = Vector3.Lerp(startPos, targetPos, smoothT);
+            cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+            cam.orthographicSize = Mathf.Lerp(startSize, targetSize, smoothT);
+            
+            // Eğer zarlar gibi fizik objelerini takip ediyorsan WaitForFixedUpdate, 
+            // genel UI/Board geçişleri için null kullanabilirsin.
+            yield return null; 
+        }
+    }
+    public IEnumerator SmoothCameraMove(bool resetCamera)
+    {
+        if (resetCamera)
+        {
+            var cam = Camera.main;
+            var cameraLock = cam.GetComponent<CameraPlayerLock>();
+            if (cameraLock != null) cameraLock.enabled = false; // Script'i komple kapatmak daha güvenli
+            Vector3 startPos = cam.transform.position;
+            Quaternion startRot = cam.transform.rotation;
+            float startSize = cam.orthographicSize;
+            
+            var targetPos = players[currentPlayerIndex].gameObject.transform.position;
+            var targetRot = players[currentPlayerIndex].gameObject.transform.rotation;
+            // float targetSize = cameraStartingPoint.orthographicSize;
+
+            float t = 0;
+            while (t < 1)
+            {
+                t += Time.deltaTime / 1;
+                float smoothT = Mathf.SmoothStep(0, 1, t);
+
+                cam.transform.position = Vector3.Lerp(startPos, targetPos, smoothT);
+                cam.transform.rotation = Quaternion.Slerp(startRot, targetRot, smoothT);
+                cam.orthographicSize = Mathf.Lerp(startSize, 25, smoothT);
+                
+                // Eğer zarlar gibi fizik objelerini takip ediyorsan WaitForFixedUpdate, 
+                // genel UI/Board geçişleri için null kullanabilirsin.
+                yield return null; 
+            }
+        }
+        
+    }
+
+
+
+
+
+#region In-Game Console
+
+    [Command(requiresAuthority = false)]
+    public void CmdExecuteDebugCommand(string fullInput, NetworkConnectionToClient sender = null)
+    {
+        
+        string[] args = fullInput.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (args.Length == 0) return;
+        string command = args[0].ToLower();
+
+        switch (command)
+        {
+            case "/setmoney":
+                ExecuteSetMoney(sender,args);
+                break;
+            case "/jail":
+                ExecuteJail(sender,args);
+                break;
+            case "/tp":
+                ExecuteTeleport(sender,args);
+                break;
+            case "/bankrupt":
+                ExecuteBankrupt(sender,args);
+                break;
+            case "/rollemptydice":
+                ExecuteEmptyDice(sender,args);
+                break;
+            default:
+                string consoleReply = $"<color=#cc0000>Bilinmeyen komut: {command} </color>";
+                TargetReplyConsole(sender,consoleReply);
+                break;
+        }
+    }
+
+    [TargetRpc]
+    public void TargetReplyConsole(NetworkConnectionToClient? sender, string message)
+    {
+        uiManager.AppendToConsole(message);
+    }
+
+    public void ExecuteSetMoney(NetworkConnectionToClient? sender, string[] args)
+    {
+        if (args.Length < 3) return;
+        
+        if (!int.TryParse(args[1], out int playerIndex) || !int.TryParse(args[2], out int amount))
+        {
+            TargetReplyConsole(sender, "Geçersiz argümanlar. Kullanım: /setmoney [playerIndex] [amount]");
+            return;
+        }
+
+        if (playerIndex > 0 && playerIndex <= players.Count)
+        {
+            PlayerScript targetPlayer = players[playerIndex];
+            targetPlayer.money = amount;
+            TargetReplyConsole(sender, $"{targetPlayer.playerName} adlı oyuncunun parası {amount} olarak ayarlandı.");
+        }
+
+        else
+        {
+            TargetReplyConsole(sender, "Geçersiz oyuncu indexi. Oyuncu sayısı: " + players.Count);
+        }
+
+    }
+
+    public void ExecuteJail(NetworkConnectionToClient? sender, string[] args)
+    {
+        if (args.Length < 2) return;
+        if (!int.TryParse(args[1], out int playerIndex))
+        {
+            TargetReplyConsole(sender, "Geçersiz argümanlar. Kullanım: /jail [playerIndex]");
+            return;
+        }
+        if (playerIndex > 0 && playerIndex <= players.Count)
+        {
+            PlayerScript targetPlayer = players[playerIndex];
+            targetPlayer.GoToJail();
+            TargetReplyConsole(sender, $"{targetPlayer.playerName} adlı oyuncu hapse atıldı.");
+        }
+        else
+        {
+            TargetReplyConsole(sender, "Geçersiz oyuncu indexi. Oyuncu sayısı: " + players.Count);
+        }
+    }
+
+    public void ExecuteTeleport(NetworkConnectionToClient? sender, string[] args)
+    {
+
+        if (args.Length < 3) return;
+        if (!int.TryParse(args[1], out int playerIndex) || !int.TryParse(args[2], out int tileIndex))
+        {
+            TargetReplyConsole(sender, "Geçersiz argümanlar. Kullanım: /tp [playerIndex] [tileIndex]");
+            return;
+        }
+        if (playerIndex > 0 && playerIndex <= players.Count)
+        {
+            PlayerScript targetPlayer = players[playerIndex];
+            targetPlayer.RpcTeleportPlayer(tileIndex);
+            TargetReplyConsole(sender, $"{targetPlayer.playerName} adlı oyuncu {GetRuntimeTile(tileIndex).tileData.tileName} konumuna ışınlandı.");
+        }
+        else
+        {
+            TargetReplyConsole(sender, "Geçersiz oyuncu indexi. Oyuncu sayısı: " + players.Count);
+        }
+    }
+    public void ExecuteBankrupt(NetworkConnectionToClient? sender, string[] args)
+    {
+        if (args.Length < 2) return;
+        if (!int.TryParse(args[1], out int playerIndex))
+        {
+            TargetReplyConsole(sender, "Geçersiz argümanlar. Kullanım: /bankrupt [playerIndex]");
+            return;
+        }
+        if (playerIndex > 0 && playerIndex <= players.Count)
+        {
+            PlayerScript targetPlayer = players[playerIndex];
+            InitiateBankruptcy(targetPlayer);
+            TargetReplyConsole(sender, $"{targetPlayer.playerName} adlı oyuncu iflas etti.");
+        }
+        else
+        {
+            TargetReplyConsole(sender, "Geçersiz oyuncu indexi. Oyuncu sayısı: " + players.Count);
+        }
+    }
+
+    public void ExecuteEmptyDice(NetworkConnectionToClient? sender, string[] args)
+    {
+        if (args.Length < 2) return;
+        if (!int.TryParse(args[1], out int playerIndex))
+        {
+            TargetReplyConsole(sender, "Geçersiz argümanlar. Kullanım: /rollemptydice [playerIndex]");
+            return;
+        }
+        if (playerIndex > 0 && playerIndex <= players.Count)
+        {
+            PlayerScript targetPlayer = players[playerIndex];
+            targetPlayer.hasRolledDice = true;
+            RpcBroadcastMovement(0, 0, 0);
+            // RpcSpawnAndRoll(targetPlayer, 1, 1);
+            TargetReplyConsole(sender, $"{targetPlayer.playerName} adlı oyuncu boş zar attı.");
+        }
+        else
+        {
+            TargetReplyConsole(sender, "Geçersiz oyuncu indexi. Oyuncu sayısı: " + players.Count);
+        }
+    }
+    
+    
+#endregion
+
+
+
 }
+
+

@@ -6,6 +6,7 @@ using Steamworks;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Collections;
+using Mirror.Examples.Basic;
 
 public class MonopolyRoomPlayer : NetworkRoomPlayer
 {
@@ -14,7 +15,7 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
     public RawImage profileImage;
     public Image borderImage;
     public TMP_Dropdown characterDropdown;
-    // public GameObject localCanvas; // Inspector'dan bağla, transform.Find yerine daha sağlamdır
+    public int backgroundIndex = 0;
 
     [Header("Senkronize Veriler")]
     [SyncVar(hook = nameof(OnCharacterChanged))] public int characterIndex = 0;
@@ -51,14 +52,30 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
             characterDropdown.AddOptions(charOptions);
             characterDropdown.RefreshShownValue();
         }
+
+
+        if (SteamManager.Initialized)
+        {
+            // Sadece local player değil, her client bu haberi dinlemeli
+            avatarImageLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarImageLoaded);
+            
+            // Steam verisi bazen anında gelmez, isim için de bir callback eklemek hayat kurtarır
+            // Bu isteğe bağlıdır ama garantiye alır:
+            // Callback<PersonaStateChange_t>.Create(OnPersonaStateChange); 
+        }
+
         if (playerSteamId != 0) 
         {
-            GetSteamAvatar((CSteamID)playerSteamId);
+        SteamFriends.RequestUserInformation((CSteamID)playerSteamId, false);
+        GetSteamAvatar((CSteamID)playerSteamId);
         }
 
         // 4. FORCE UPDATE: Değer değişmese bile görselleri çiz
+        if (nameText != null) nameText.text = playerName;
         OnCharacterChanged(0, characterIndex);
         OnLobbyColorChanged(Color.white, playerColor);
+
+        backgroundIndex = PlayerPrefs.GetInt("SelectedCardSkin", 0); // Kaydedilmiş arka plan indexini al
     }
 
     public override void OnStartLocalPlayer()
@@ -91,7 +108,7 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         if (buttonObject != null)
         {
             var button = buttonObject.GetComponent<Button>();
-            if (!NetworkServer.active)
+            if (!isServer)
             {
                 buttonObject.SetActive(false);
             }
@@ -108,6 +125,8 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         
         }
     }
+
+    
     #region Commands
     // --- KOMUTLAR (SERVER'DA ÇALIŞIR) ---
     [Command]
@@ -153,6 +172,10 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
     { 
         if (newId != 0) 
         {
+            if (SteamManager.Initialized)
+            {
+                SteamFriends.RequestUserInformation((CSteamID)newId, false);
+            }
             // Eğer UI henüz hazır değilse, bir frame bekleyip öyle çek
             StartCoroutine(FetchAvatarWhenReady(newId));
         }

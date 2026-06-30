@@ -17,7 +17,6 @@ public class LogManager : MonoBehaviour
     private void Awake() 
     { 
         Instance = this; 
-        // var logPanel = GameManager.Instance.uiManager.logsWindow;
         
     }
 
@@ -37,31 +36,15 @@ public class LogManager : MonoBehaviour
         TMP_Text newLog = Instantiate(logEntryPrefab, contentParent);
         newLog.text = message;
         newLog.gameObject.SetActive(true);
-        
-        // 2. İçeriği doldur
-        // newLog.text = $"<color=#888888>[{System.DateTime.Now:HH:mm}]</color> {message}";
-        // newLog.text = message;
 
-        // 3. En aşağıya ekle
+        // 2. En aşağıya ekle
         newLog.transform.SetAsLastSibling();
 
-        // 4. Otomatik kaydırma (Hemen aşağıya odaklan)
+        // 3. Otomatik kaydırma (Hemen aşağıya odaklan)
         Canvas.ForceUpdateCanvases();
         scrollRect.verticalNormalizedPosition = 0f;
     }
 
-    // public GameObject CreateNewTextObject(string message)
-    // {
-    //     GameObject go = new GameObject("LogEntry");
-    //     go.transform.SetParent(contentParent);
-        
-    //     TextMeshProUGUI txt = go.AddComponent<TextMeshProUGUI>();
-    //     txt.text = message;
-    //     txt.fontSize = 24;
-    //     txt.raycastTarget = false;
-    //     return go;
-        
-    // }
 
     public void ToggleLogbook()
     {

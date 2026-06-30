@@ -1,3 +1,4 @@
+
 using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
@@ -16,8 +17,16 @@ public class TurnManager : MonoBehaviour
     #region Turn Management
     public void StartTurn()
     {
+        currentPlayer.hasRolledDice = false;
+        
         GameManager.Instance.CmdSetPaused(false);
-        SetCameraLock(currentPlayer.transform);
+        foreach (var player in players)
+        {
+            if (!player.isCameraTopDown && player.isLocalPlayer)
+            {    
+                SetCameraLock(currentPlayer.transform);
+            }
+        }
         var uiElements = GameManager.Instance.GetUIElements();
         if (currentPlayer.isLocalPlayer)
         {
@@ -114,28 +123,65 @@ public class TurnManager : MonoBehaviour
             yield return null;
         }
     }
-    public void SetCameraLock(Transform target)
+    
+    
+    
+    #pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+    private GameObject? currentAura;
+    public void SetCameraLock(Transform target, bool showAura = false, Color tileColor = default)
     {
         var cameraLock = Camera.main.GetComponent<CameraPlayerLock>();
+        cameraLock.enabled = true;
         if (cameraLock != null)
         {
             cameraLock.SetTarget(target);
-            cameraLock.isLocked = isLocked;
+            cameraLock.isLocked = true;
+        }
+        if (currentAura != null)
+        {
+            Destroy(currentAura);
+        }
+        if (showAura)
+        {
+            ShowTileAura(target, tileColor);
+        }
+    }
+    #pragma warning restore CS8632
+
+    public void ShowTileAura(Transform tile, Color tileColor)
+    {
+        currentAura = Instantiate(GameManager.Instance.tileAura, tile.transform);
+        currentAura.transform.localPosition = Vector3.zero;
+        ParticleSystem[] particleSystem = currentAura.GetComponentsInChildren<ParticleSystem>();
+        foreach (var ps in particleSystem)
+        {
+            var main = ps.main;
+            main.startColor = tileColor;
         }
     }
 
+
+    // Oyuncunun zar attıktan sonra üzerinde durduğu tile ile ilgili işlemler
     private IEnumerator HandleTileAction(int diceTotal)
     {
-        GameManager.Instance.CmdSetPaused(false);   
+
+        // Tur sayacını aktifleştiriyoruz.
+        GameManager.Instance.CmdSetPaused(false);
+
+        // Aşağıdaki işlemlerde kullanmak için tile verilerini çekiyoruz.
         TileRuntimeData currentTile = GameManager.Instance.GetRuntimeTile(currentPlayer.currentTileIndex);
         TileType tileType = currentTile.tileData.tileType;
         int currentPlayerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
 
+
+        // Eğer tile'ın sahibi varsa ve sahibi biz değilsek, kira ödeyeceğiz.
         if (currentTile.owner != null && currentTile.owner != currentPlayer)
         {
             GameManager.Instance.HandleButtonStates(null);
             HandleRentPayment(currentTile, diceTotal);
         }
+
+        // Eğer tile satın alınabilir durumdaysa (yani boşsa veya bize aitse), satın alma seçeneklerini gösteriyoruz.
         else if (GameManager.Instance.IsTilePurchasable(currentTile) || currentTile.owner == currentPlayer)
         {
             if (currentTile.hasHotel)
@@ -152,12 +198,11 @@ public class TurnManager : MonoBehaviour
 
                 // Satın aldığın istasyonlara tekrar geldiğin zaman
                 // orayı pas geçiyoruz.
-                if (currentTile.tileData is UoSData)
+                if (currentTile.tileData is UoSData && currentTile.owner == currentPlayer)
                 {
                     currentPlayer.hasMadeDecision = true;
                 }
                 
-                // yield return new WaitUntil(() => currentPlayer.hasMadeDecision);
                 int startTurnIndex = GameManager.Instance.turnCount;
                 yield return new WaitUntil(() => currentPlayer.hasMadeDecision || GameManager.Instance.turnCount != startTurnIndex);
 
@@ -168,6 +213,8 @@ public class TurnManager : MonoBehaviour
                 }
             }
         }
+
+        // Eğer tile şans veya kamu fonu kartıysa, kart çekme işlemini başlatıyoruz.
         else if (tileType == TileType.Chance || tileType == TileType.Community)
         {
             if (currentPlayer.isLocalPlayer)
@@ -175,6 +222,8 @@ public class TurnManager : MonoBehaviour
                 GameManager.Instance.CmdRequestCard(currentTile.tileData.tileID);
             }
         }
+
+        // Eğer tile vergi ise, vergiyi ödeyeceğiz.
         else if (tileType == TileType.Tax)
         {
             var price = currentTile.GetRent(diceTotal, false);
@@ -185,6 +234,8 @@ public class TurnManager : MonoBehaviour
                 GameManager.Instance.RpcShowTaxPayment(currentPlayerIndex, currentTile.tileData.tileName, price);
             }
         }
+
+        // Eğer tile bizi hapse gönderecek bir tile ise, hapse gideceğiz.
         else if (tileType == TileType.GoToJail)
         {
             if (NetworkServer.active)
@@ -193,18 +244,24 @@ public class TurnManager : MonoBehaviour
             }
             
         }
+
+        // Diğer durumlarda, herhangi bir işlem yapmamıza gerek yok, sadece "Sonraki" butonunu aktif ediyoruz.
         else
         {
             GameManager.Instance.HandleButtonStates(null);
         }
+
+        // Tur sonunda iflas kontrolü yapıyoruz.
         currentPlayer.CheckBankruptcy();
         
     }
 
     private void HandleRentPayment(TileRuntimeData currentTile, int diceTotal)
     {
-        int currentPlayerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
-        int currentOwnerIndex = GameManager.Instance.players.IndexOf(currentTile.owner);
+        int playerIndex = GameManager.Instance.players.IndexOf(currentPlayer);
+        int ownerIndex = GameManager.Instance.players.IndexOf(currentTile.owner);
+        int uosCount = GameManager.Instance.propertyManager.GetPlayerUoSCount(currentTile.owner);
+        
         if (currentTile.owner == null) return;
 
         bool hasFullSet = false;
@@ -212,13 +269,14 @@ public class TurnManager : MonoBehaviour
         {
             hasFullSet = GameManager.Instance.HasFullColorSet(currentTile.owner, property.groupColor);
         }
-        int rent = currentTile.GetRent(diceTotal, hasFullSet);
+
+        int rent = currentTile.GetRent(diceTotal, hasFullSet,uosCount);
         if (NetworkServer.active)
         {
             currentPlayer.money -= rent;
             currentTile.owner.money += rent;
         }
-        GameManager.Instance.RpcShowRentPayment(currentPlayerIndex, currentOwnerIndex, currentTile.tileData.tileName, rent);
+        GameManager.Instance.RpcShowRentPayment(playerIndex, ownerIndex, currentTile.tileData.tileName, rent);
     }
 
     public bool CheckColorSetWin(PlayerScript player)
@@ -262,8 +320,7 @@ public class TurnManager : MonoBehaviour
         return false;
     }
     
-
-
+    
 
     #endregion
 
