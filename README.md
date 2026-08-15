@@ -14,7 +14,7 @@
   <tr>
     <td width="50%" align="center">
       <img src="docs/screenshots/tile with one building.png" alt="Purchase Screen"/><br/>
-      <b>Owned Tile</b>
+      <b>Owned Tile (1st level)</b>
     </td>
     <td width="50%" align="center">
       <img src="docs/screenshots/tiles.png" alt="Property Cards"/><br/>
