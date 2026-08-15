@@ -1,4 +1,30 @@
 [ TR ] | [ [English](README.md) ]
+
+<h3 align="center">📷 Oyun İçi Ekran Görüntüleri</h3>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="../docs/screenshots/lobby.png" alt="Lobby Screen"/><br/>
+      <b>Lobby & Lobi Yönetimi</b>
+    </td>
+    <td width="50%" align="center">
+      <img src="../docs/screenshots/dice roll.png" alt="In Game Movement"/><br/>
+      <b>Oyun Tahtası & Hareket Mekaniği</b>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="../docs/screenshots/tile with one building.png" alt="Purchase Screen"/><br/>
+      <b>Satın Alınmış Arsa</b>
+    </td>
+    <td width="50%" align="center">
+      <img src="../docs/screenshots/tiles.png" alt="Property Cards"/><br/>
+      <b>Sağ Panel Tapu Detayları</b>
+    </td>
+  </tr>
+</table>
+
 # 🎲 Monopoly Multiplayer (Unity & Mirror Networking)
 
 ![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black?style=for-the-badge&logo=unity)
