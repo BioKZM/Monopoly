@@ -6,7 +6,6 @@ using Steamworks;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Collections;
-using Mirror.Examples.Basic;
 
 public class MonopolyRoomPlayer : NetworkRoomPlayer
 {
@@ -31,12 +30,6 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         base.OnStartClient();
     
         // 1. Lobi Paneline Yerleşme
-        GameObject targetParent = GameObject.Find("LobbyContent");
-        if (targetParent != null)
-        {
-            transform.SetParent(targetParent.transform, false);
-            transform.localScale = Vector3.one;
-        }
         Transform localCanvas = transform.Find("LocalCanvas");
 
         // 2. UI Kısıtlamaları
@@ -76,6 +69,7 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         OnLobbyColorChanged(Color.white, playerColor);
 
         backgroundIndex = PlayerPrefs.GetInt("SelectedCardSkin", 0); // Kaydedilmiş arka plan indexini al
+        LobbyPlayerListEvents.RaisePlayersChanged();
     }
 
     public override void OnStartLocalPlayer()
@@ -100,6 +94,52 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         {
             SetupHostUI();
         }
+        else
+        {
+            SetupClientUI();
+        }
+    }
+
+    public override void OnStopClient()
+    {
+        base.OnStopClient();
+        LobbyPlayerListEvents.RaisePlayersChanged();
+    }
+
+    public void RefreshLobbyVisuals()
+    {
+        Transform localCanvas = transform.Find("LocalCanvas");
+        if (!isLocalPlayer && localCanvas != null)
+        {
+            localCanvas.gameObject.SetActive(false);
+        }
+
+        if (characterDropdown != null)
+        {
+            if (characterDropdown.options.Count != charOptions.Count)
+            {
+                characterDropdown.ClearOptions();
+                characterDropdown.AddOptions(charOptions);
+            }
+
+            characterDropdown.SetValueWithoutNotify(characterIndex);
+            characterDropdown.RefreshShownValue();
+        }
+
+        if (nameText != null)
+        {
+            nameText.text = string.IsNullOrEmpty(playerName) ? "Player" : playerName;
+        }
+
+        if (borderImage != null)
+        {
+            borderImage.color = playerColor;
+        }
+
+        if (playerSteamId != 0 && profileImage != null)
+        {
+            GetSteamAvatar((CSteamID)playerSteamId);
+        }
     }
 
     private void SetupHostUI()
@@ -107,14 +147,27 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         GameObject buttonObject = GameObject.Find("StartGameButton");
         if (buttonObject != null)
         {
+            // buttonObject.SetActive(true);
             var button = buttonObject.GetComponent<Button>();
-            if (!isServer)
-            {
-                buttonObject.SetActive(false);
-            }
             button.interactable = true;
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => MonopolyNetworkManager.Instance.StartGameManually());
+        }
+        GameObject copyButtonObject = GameObject.Find("CopyButton");
+        if (copyButtonObject != null)
+        {
+            var button = copyButtonObject.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => MonopolyNetworkManager.Instance.CopyLobbyCode());
+        
+        }
+    }
+    private void SetupClientUI()
+    {
+        GameObject buttonObject = GameObject.Find("StartGameButton");
+        if (buttonObject != null)
+        {
+            buttonObject.SetActive(false);
         }
         GameObject copyButtonObject = GameObject.Find("CopyButton");
         if (copyButtonObject != null)
@@ -156,16 +209,19 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         if (characterDropdown != null) characterDropdown.SetValueWithoutNotify(newIndex);
         Debug.Log("[HOOK VALUE CHANGE] OnCharacterChanged triggered. New value: " + newIndex);
         // characterDropdown.onValueChanged.AddListener
+        LobbyPlayerListEvents.RaisePlayersChanged();
     }
 
     void OnLobbyColorChanged(Color oldColor, Color newColor)
     {
         if (borderImage != null) borderImage.color = newColor;
+        LobbyPlayerListEvents.RaisePlayersChanged();
     }
 
     void HandleNameChanged(string old, string newName) 
     { 
         if (nameText) nameText.text = newName; 
+        LobbyPlayerListEvents.RaisePlayersChanged();
     }
 
     void HandleSteamIdChanged(ulong oldId, ulong newId) 
@@ -179,6 +235,7 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
             // Eğer UI henüz hazır değilse, bir frame bekleyip öyle çek
             StartCoroutine(FetchAvatarWhenReady(newId));
         }
+        LobbyPlayerListEvents.RaisePlayersChanged();
     }
 
     private IEnumerator FetchAvatarWhenReady(ulong id)
@@ -212,6 +269,7 @@ public class MonopolyRoomPlayer : NetworkRoomPlayer
         {
             profileImage.texture = texture;
             profileImage.color = Color.white;
+            LobbyPlayerListEvents.RaisePlayersChanged();
         }
     }
 

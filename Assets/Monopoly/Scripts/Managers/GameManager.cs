@@ -135,13 +135,16 @@ public class GameManager : NetworkBehaviour
 
             else
             {
+                CmdPassPurchase();
+                uiManager.HandleButtonStates(null);
+                // turnTimer = 30f;
                 // if (!isServer) return;
-                
-                PlayerScript player = GetCurrentPlayer();
-
-                player.hasMadeDecision = true;
-                player.hasRolledDice = true;
-                ServerEndTurn();
+                // uiManager.PassButton();
+                // PlayerScript player = GetCurrentPlayer();
+                // if (player == null) return;
+                // player.hasMadeDecision = true;
+                // player.hasRolledDice = true;
+                // ServerEndTurn();
             }
         }
         // DebugGameState();
@@ -429,7 +432,6 @@ public class GameManager : NetworkBehaviour
     {
         Time.timeScale = 0;
         uiManager.SetWinnerUI(player);
-        
     }
 
 
@@ -467,11 +469,19 @@ public class GameManager : NetworkBehaviour
 
 
         // 5. Host isen butonu hazırla
-        if (isServer && startMatchButton != null)
+        if (startMatchButton != null)
         {
-            startMatchButton.onClick.RemoveAllListeners();
-            startMatchButton.onClick.AddListener(OnStartButtonClick);
-            startMatchButton.interactable = false; // Herkes dolana kadar kapalı
+            
+            if (isServer)
+            {
+                startMatchButton.onClick.RemoveAllListeners();
+                startMatchButton.onClick.AddListener(OnStartButtonClick);
+                startMatchButton.interactable = false; // Herkes dolana kadar kapalı
+            }
+            else
+            {
+                startMatchButton.gameObject.SetActive(false);
+            }
         }
 
         

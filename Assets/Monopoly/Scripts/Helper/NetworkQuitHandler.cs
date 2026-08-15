@@ -14,7 +14,7 @@ public class NetworkQuitHandler : MonoBehaviour
         // 2. Eğer sadece Client isek
         else if (NetworkClient.isConnected)
         {
-            NetworkClient.Disconnect();
+
             NetworkManager.singleton.StopClient();
         }
         // 3. Eğer hiçbir bağlantı yoksa (Sadece Menüde isek)
@@ -32,11 +32,14 @@ public class NetworkQuitHandler : MonoBehaviour
         }
         else if (NetworkClient.isConnected)
         {
-            NetworkClient.Disconnect();
             NetworkManager.singleton.StopClient();
         }
 
 
-        Application.Quit();
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
 }

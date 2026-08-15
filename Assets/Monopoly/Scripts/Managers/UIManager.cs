@@ -69,10 +69,21 @@ public class UIManager : MonoBehaviour
         SetupDrawer();
     }
 
-    
+    public void AdjustPlayerCardsVisibility(int activePlayerCount)
+        {
+            for (int i = 0; i < playerInfoPanels.Count; i++)
+            {
+                if (playerInfoPanels[i] != null)
+                {
+                    playerInfoPanels[i].SetActive(i < activePlayerCount);
+                }
+            }
+    }
+
     public void SetPlayersInfo(IList<PlayerScript> players)
     {
         if (players == null || playerInfoPanels == null) return;
+        AdjustPlayerCardsVisibility(players.Count);
 
         for (int x = 0; x < players.Count; x++)
         {
@@ -179,7 +190,7 @@ public class UIManager : MonoBehaviour
             }
         }
 
-    // Listenin dolup dolmadığını kontrol et
+        // Listenin dolup dolmadığını kontrol et
         if (playerInfoPanels == null || playerInfoPanels.Count == 0) {
             Debug.LogWarning("[UI_MANAGER:181] Paneller henüz hazır değil!");
             return;
@@ -188,24 +199,12 @@ public class UIManager : MonoBehaviour
         {
             for (int i = 0; i < players.Count; i++)
             {
-                // 2. ADIM: Index koruması (Panel sayısı oyuncu sayısından azsa patlama)
-                if (i >= playerInfoPanels.Count) break;
+                if (i >= playerInfoPanels.Count || playerInfoPanels[i] == null) break;
 
-                GameObject cardObj = playerInfoPanels[i];
-                if (cardObj == null) continue;
-
-                PlayerCard cardScript = cardObj.GetComponent<PlayerCard>();
-
-                // 3. ADIM: Patlayan yerin koruması (İşte burası!)
-                if (cardScript != null && players[i] != null)
+                PlayerCard cardScript = playerInfoPanels[i].GetComponent<PlayerCard>();
+                if (cardScript != null)
                 {
-                    cardScript.owner = players[i]; // 208. satır artık güvende
-                    // Diğer UI atamalarını da burada güvenle yapabilirsin
-                    // Örn: cardScript.nameText.text = players[i].playerName;
-                }
-                else 
-                {
-                    Debug.LogWarning($"Hacı, {i}. indisteki kartta script yok veya oyuncu null!");
+                    cardScript.SetupCard(players[i]);
                 }
             }
         }
@@ -296,6 +295,7 @@ public class UIManager : MonoBehaviour
             SetGroup(null);
             return;
         }
+
         // Buraya geldiğimizde biliyoruz ki: Sıra bizde, hareket bitti, zar atıldı ve karar verilmedi.
         switch (tile.tileData.tileType)
         {
@@ -314,7 +314,7 @@ public class UIManager : MonoBehaviour
                 }
                 else
                 {
-                    // Başkasınınsa kira ödeme
+                    // Arsa başka oyuncunun ise kira öde
                     SetGroup(null); 
                 }
                 break;
@@ -342,10 +342,10 @@ public class UIManager : MonoBehaviour
                 break;
         }
     }
-    public void ShowPropertyDetails(string tileName, TileRuntimeData data)
-    {
 
-        
+    // UI'da detay panelini açar ve ilgili mülkün bilgilerini gösterir.
+    public void ShowPropertyDetails(string tileName, TileRuntimeData data)
+    {   
         if (detailPanel != null)
         {
             detailPanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
@@ -364,10 +364,6 @@ public class UIManager : MonoBehaviour
 
             GameObject tile = GameManager.Instance.propertyTiles[data.tileData.tileID];
             GameManager.Instance.turnManager.SetCameraLock(tile.transform, showAura: true, tileColor: GameManager.Instance.GetTileColor(data.tileData));
-
-            // Color tileColor = GameManager.Instance.GetTileColor(data.tileData);
-            // ShowTileAura(tile.transform,tileColor);
-            // StartCoroutine(GameManager.Instance.SmoothCameraMove(tile.transform.position + Vector3.up*50, tile.transform.rotation,0f,1f));
         }
     }
     
@@ -385,6 +381,7 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // --- UI button group controls ---
     public void ShowRollDice()
     {
         SetGroup(rollDiceGroup);
@@ -399,6 +396,10 @@ public class UIManager : MonoBehaviour
     {
         SetGroup(buildGroup);
     }
+
+    // --- UI button group controls ---
+
+
     public void SetupCardUI(string cardText, bool isChanceCard)
     {
         var uiElements = GameManager.Instance.GetUIElements();
@@ -410,6 +411,12 @@ public class UIManager : MonoBehaviour
         textComponent.text = cardText;
     }
 
+
+
+
+
+
+    // Hide panel when player is bankrupt
     public void RemovePlayerInfoPanel(PlayerScript playerToRemove)
     {
         foreach (var cardObj in playerInfoPanels)
@@ -417,18 +424,14 @@ public class UIManager : MonoBehaviour
             PlayerCard card = cardObj.GetComponent<PlayerCard>();
             if (card.owner == playerToRemove)
             {
-                cardObj.SetActive(false); // Kartı gizle
+                cardObj.SetActive(false);
                 break; 
             }
         }
         LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
-        // if (index >= 0 && index < playerInfoPanels.Count)
-        // {
-        //     GameObject panelToRemove = playerInfoPanels[index];
-        //     playerInfoPanels.RemoveAt(index);
-        //     Destroy(panelToRemove);
-        // }
+
     }
+    // Show winner
     public void SetWinnerUI(PlayerScript player)
     {
         var uiElements = GameManager.Instance.GetUIElements();
@@ -530,43 +533,45 @@ public class UIManager : MonoBehaviour
         }
         if (property != null)
         {
-            // Ev varsa
+            // does the property have house?
             if (hasHouse)
             {
-                // Otele para yetiyorsa
+                // can afford hotel?
                 if (currentPlayer.money > property.hotelCost)
                 {
                     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
                     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = true;
                 }
-                // Otele para yetmiyorsa
                 else
                 {
                     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
                     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
                 }
             }
-            // Otel varsa
+            // does the property have hotel?
             else if (hasHotel)
             {
                 buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
                 buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
             }
-            // Bina yoksa
+
+            // if there's no property
             else
             {
-                // Eve para yetiyorsa
+                // if can afford house
                 if (currentPlayer.money > property.houseCost)
                 {
                     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
                     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
                 }
+                // if can afford property but not house
                 else if (currentPlayer.money > property.price && currentPlayer.money < property.houseCost)
                 {
                     propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;
                     buildGroup.transform.GetChild(0).GetComponent<Button>().interactable = false;
                     buildGroup.transform.GetChild(1).GetComponent<Button>().interactable = false;
                 }
+                // if can afford both
                 else
                 {
                     propertyActionGroup.transform.GetChild(0).GetComponent<Button>().interactable = true;

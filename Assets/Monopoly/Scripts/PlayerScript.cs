@@ -19,6 +19,7 @@ public class PlayerScript : NetworkBehaviour
     [SyncVar] public int currentTileIndex = 0; // Oyuncunun mevcut kare indeksi
     [SyncVar] public bool hasMadeDecision = false; // Oyuncu mülk satın alımını yaptı mı?
     [SyncVar] public bool isInJail = false; // Oyuncunun hapis durumu
+    [SyncVar] public int playerBackgroundIndex; // Oyuncu kart arkaplan indeksi
     public bool wantsToBuy = false; // Mülk satın alımı için UI isteği
     public readonly SyncList<string> ownedTiles = new SyncList<string>(); // Oyuncunun satın aldığı mülklerin ismi
     public bool hasRolledDice = false; // Oyuncunun zar atma durumu
@@ -31,12 +32,11 @@ public class PlayerScript : NetworkBehaviour
     public ulong playerSteamId; // Oyuncunun Steam ID'si  
     public Texture steamAvatarTexture; // Oyuncunun Steam profil resmi
     public Color playerColor; // Oyuncunun seçtiği karakter rengi
-    public int characterIndex; // Oyuncunun seçtiği karakter indeksi
-    public int playerBackgroundIndex;
-    public Material baseMaterial;
-    public Material playerMaterial;
-    public Material playerMaterialDark;
-    public bool isCameraTopDown = false;
+    public int characterIndex; // Oyuncunun seçtiği karakter model indeksi
+    public Material baseMaterial; // Default renk materyali
+    public Material playerMaterial; // Oyuncunun seçtiği renge göre oluşturulmuş materyal
+    public Material playerMaterialDark; // Oyuncunun seçtiği renkten daha koyu bir materyal, UI ve görselleştirme için
+    public bool isCameraTopDown = false; // Kamera geçiş değişkeni
     
     protected Callback<AvatarImageLoaded_t> avatarImageLoaded;
 
@@ -57,7 +57,6 @@ public class PlayerScript : NetworkBehaviour
     public override void OnStartClient()
     {
         base.OnStartClient();
-        // StartCoroutine()
         ownedTiles.Callback += OnOwnedTilesChanged;
         FindTiles();
         StartCoroutine(PrepareAndRegister());
@@ -142,17 +141,24 @@ public class PlayerScript : NetworkBehaviour
         playerName = visualData.steamName;
         playerColor = visualData.playerColor;
         playerSteamId = visualData.steamID;
-        playerBackgroundIndex = visualData.backgroundIndex;
+        // playerBackgroundIndex = visualData.backgroundIndex;
 
         InitializeMaterials();
         
         StartCoroutine(GetSteamAvatar(new CSteamID(playerSteamId)));
         if (isLocalPlayer)
         {
+            CmdSendSkinToServer(visualData.backgroundIndex);
             CmdRegisterToManager();
         }
     }
     
+
+    [Command (requiresAuthority = false)]
+    public void CmdSendSkinToServer(int backgroundIndex)
+    {
+        playerBackgroundIndex = backgroundIndex;
+    }
 
     [Command(requiresAuthority = false)]
     public void CmdRegisterToManager(NetworkConnectionToClient sender = null)

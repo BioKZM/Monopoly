@@ -24,11 +24,19 @@ public class SteamLobbyController : MonoBehaviour
     public TextMeshProUGUI lobbyCodeText;
     private MonopolyNetworkManager manager;
 
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
 
     void Start()
     {
-        if (Instance == null) Instance = this;
-        manager = MonopolyNetworkManager.Instance;
+        // manager = MonopolyNetworkManager.Instance;
 
         if (!SteamManager.Initialized) return;
 
@@ -43,7 +51,7 @@ public class SteamLobbyController : MonoBehaviour
     public void HostLobby()
     {
         // Public yapıyoruz ki kod ile aranabilsin (SpaceWar'da FriendsOnly bazen aramada çıkmaz)
-        SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, manager.maxConnections);
+        SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, 4);
         
     }
 
@@ -58,7 +66,15 @@ public class SteamLobbyController : MonoBehaviour
         Debug.Log("Steam Lobisi Kuruldu! ID: " + callback.m_ulSteamIDLobby);
 
         // A. Mirror Host'u Başlat
-        manager.StartHost();
+        if (NetworkManager.singleton != null)
+        {
+        // manager.StartHost();
+            NetworkManager.singleton.StartHost();
+        }
+        else
+        {
+            Debug.Log("[KRİTİK] NetworkManager bulunamadı! Singleton NULL.");
+        }
 
         // B. Host Adresini Kaydet (FizzySteamworks buna bağlanacak)
         string hostAddress = SteamUser.GetSteamID().ToString();

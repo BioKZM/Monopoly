@@ -22,8 +22,8 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
     public override void Awake() 
     {
-        if (NetworkManager.singleton != null && NetworkManager.singleton != this) {
-            Destroy(gameObject); // Eğer zaten bir tane varsa, beni (yeni geleni) yok et
+        if (singleton != null && singleton != this) {
+            Destroy(gameObject);
             return;
         }
         base.Awake();
@@ -58,17 +58,16 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
         Debug.Log($"[SCENE DEBUG] Yüklenen: {currentScenePath} | Beklenen RoomScene: {RoomScene}");
 
-        // KONTROL: Sahne yolu RoomScene'i içeriyor mu VEYA Sahne adı "LobbyScene" mi?
-        // Bu "OR" (||) operatörü sayesinde hata payını sıfıra indiriyoruz.
         bool isLobby = currentScenePath == RoomScene || 
                        currentScenePath.Contains(RoomScene) || 
-                       currentSceneName.Contains("Lobby") || // En garanti yöntem
+                       currentSceneName.Contains("Lobby") ||
                        (RoomScene != null && currentScenePath.Contains(RoomScene));
 
         if (isLobby) 
         {
             currentLobbyCode = SteamLobbyController.Instance.currentLobbyCode;
             UpdateLobbyCodeTextUI();
+            EnsureLobbyPlayerListRenderer();
 
             // Eğer daha önce oyuncu yaratılmadıysa yarat
             if (NetworkClient.connection != null && NetworkClient.connection.identity == null)
@@ -82,6 +81,7 @@ public class MonopolyNetworkManager : NetworkRoomManager
             }
         }
     }
+    
     // --- OYUN SAHNESİ YÜKLENİNCE ÇALIŞIR ---
     public override void OnServerSceneChanged(string sceneName)
     {
@@ -90,10 +90,9 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
         Debug.Log($"[SCENE CHANGE] Yüklenen Sahne: {sceneName} | Beklenen Oyun Sahnesi: {GameplayScene}");
 
-        // 2. KONTROL: Eğer Mirror piyonları doğurmadıysa ve şu an Oyun Sahnesindeysek...
-        // Not: Path/Name uyuşmazlığını önlemek için "Contains" kullanıyoruz.
+        // 2. KONTROL: Eğer Mirror piyonları doğurmadıysa ve şu an oyun sahnesindeysek
         bool isGameScene = sceneName == GameplayScene || 
-                           sceneName.Contains("Game") || // Sahne adında "Game" geçiyorsa (Senin sahne adına göre düzenle)
+                           sceneName.Contains("Game") ||
                            (GameplayScene != null && sceneName.Contains(GameplayScene));
 
         if (isGameScene)
@@ -104,16 +103,12 @@ public class MonopolyNetworkManager : NetworkRoomManager
     }
     private IEnumerator SpawnPlayersWithData()
     {
-        // 1. GÜVENLİK: Tüm bağlantıların (Host + Clientlar) sahneye girdiğinden emin ol
         int expectedPlayers = lobbyDataCache.Count;
-        
-        // Herkes 'isReady' olana kadar bekle (Sonsuz döngü olmasın diye max süre koyabilirsin)
         while (NetworkServer.connections.Count < expectedPlayers) 
         {
             yield return new WaitForSeconds(0.1f);
         }
 
-        // 2. Herkesin bağlantısı geldi, şimdi 'isReady' olmalarını bekle
         bool allReady = false;
         while (!allReady)
         {
@@ -131,7 +126,6 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
         Debug.Log("[SERVER] Tüm bağlantılar hazır, piyonlar dağıtılıyor...");
 
-        // 3. ŞİMDİ piyonları yarat ve verileri bas
         foreach (var conn in NetworkServer.connections.Values)
         {
             if (lobbyDataCache.TryGetValue(conn.connectionId, out PlayerSessionData data))
@@ -141,16 +135,14 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
                 var visualScript = gamePlayer.GetComponent<MonopolyGamePlayer>();
                 
-                // Verileri bas (SyncVar olduklarından emin ol!)
                 visualScript.characterIndex = data.characterIndex;
                 visualScript.playerColor = data.playerColor;
                 visualScript.steamID = data.steamID;
                 visualScript.steamName = data.steamName;
                 visualScript.backgroundIndex = data.backgroundIndex;
 
-                Debug.Log($"[ABİN GELDİ YARRAM] {data.steamName} için piyon hazırlandı. Index: {data.characterIndex}, Renk: {data.playerColor}");
+                Debug.Log($"{data.steamName} için piyon hazırlandı. Index: {data.characterIndex}, Renk: {data.playerColor}");
                 
-                // Client'ın piyonunu değiştir
                 NetworkServer.ReplacePlayerForConnection(conn, gamePlayer, ReplacePlayerOptions.KeepAuthority);
             }
         }
@@ -162,14 +154,13 @@ public class MonopolyNetworkManager : NetworkRoomManager
     {
         if (NetworkDataHelper.Instance == null)
         {
-            Debug.LogError("[START_GAME_MANUALLY]NetworkDataHelper bulunamadı.");
+            Debug.LogError("[START_GAME_MANUALLY] NetworkDataHelper bulunamadı.");
             return;
         }
 
         lobbyDataCache.Clear();
         NetworkDataHelper.Instance.finalLobbyPlayers.Clear();
-        // 1. GÜVENLİK: Odadaki herkesi ZORLA 'Hazır' yap
-        // Böylece Mirror "Bu adam hazır değildi" diyip piyonu unutmamazlık yapamaz.
+
         foreach (var player in roomSlots)
         {
             if (player != null)
@@ -177,7 +168,7 @@ public class MonopolyNetworkManager : NetworkRoomManager
                 var roomPlayer = player as MonopolyRoomPlayer;
                 if (roomPlayer != null)
                 {
-                    // lobbyDataCache[player.connectionToClient.connectionId] = new PlayerSessionData
+                    
                     PlayerSessionData data = new PlayerSessionData
                     {
                         characterIndex = roomPlayer.characterIndex,
@@ -198,21 +189,35 @@ public class MonopolyNetworkManager : NetworkRoomManager
 
         Debug.Log("[MANAGER] Oyun Manuel Olarak Başlatılıyor! Sahne: " + GameplayScene);
 
-        // 2. Sahneyi Değiştir
         ServerChangeScene(GameplayScene);
     }
-    public override void OnRoomServerPlayersReady()
-    {
-        // Normalde burada base.OnRoomServerPlayersReady() çalışır ve sahneyi değiştirir.
-        // Biz bunu SİLİYORUZ / ÇAĞIRMIYORUZ.
-        
-        Debug.Log("Tüm oyuncular HAZIR! Ama otomatik başlatma kapalı. Host bekleniyor...");
-        
-    }
+
     public void UpdateLobbyCodeTextUI()
     {
-        var lobbyCodeText = GameObject.Find("LobbyCode").GetComponent<TextMeshProUGUI>();
+        GameObject lobbyCodeObject = GameObject.Find("LobbyCode");
+        if (lobbyCodeObject == null) return;
+
+        var lobbyCodeText = lobbyCodeObject.GetComponent<TextMeshProUGUI>();
+        if (lobbyCodeText == null) return;
+
         lobbyCodeText.text = "Lobi Kodu: " + currentLobbyCode;
+    }
+
+    private void EnsureLobbyPlayerListRenderer()
+    {
+        GameObject lobbyContent = GameObject.Find("LobbyContent");
+        if (lobbyContent == null)
+        {
+            Debug.LogWarning("[LOBBY_UI] LobbyContent bulunamadı, oyuncu listesi çizilemedi.");
+            return;
+        }
+
+        if (!lobbyContent.TryGetComponent(out LobbyPlayerListRenderer renderer))
+        {
+            renderer = lobbyContent.AddComponent<LobbyPlayerListRenderer>();
+        }
+
+        renderer.QueueRedraw();
     }
 
     public void CopyLobbyCode()
