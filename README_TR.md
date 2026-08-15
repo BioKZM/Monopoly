@@ -6,7 +6,7 @@
   <tr>
     <td width="50%" align="center">
       <img src="docs/screenshots/Lobby.png" alt="Lobby Screen"/><br/>
-      <b>Lobby & Lobi Yönetimi</b>
+      <b>Lobi</b>
     </td>
     <td width="50%" align="center">
       <img src="docs/screenshots/dice roll.png" alt="In Game Movement"/><br/>
