@@ -5,21 +5,21 @@
 <table>
   <tr>
     <td width="50%" align="center">
-      <img src="../docs/screenshots/lobby.png" alt="Lobby Screen"/><br/>
+      <img src="docs/screenshots/Lobby.png" alt="Lobby Screen"/><br/>
       <b>Lobby & Lobi Yönetimi</b>
     </td>
     <td width="50%" align="center">
-      <img src="../docs/screenshots/dice roll.png" alt="In Game Movement"/><br/>
+      <img src="docs/screenshots/dice roll.png" alt="In Game Movement"/><br/>
       <b>Oyun Tahtası & Hareket Mekaniği</b>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <img src="../docs/screenshots/tile with one building.png" alt="Purchase Screen"/><br/>
+      <img src="docs/screenshots/tile with one building.png" alt="Purchase Screen"/><br/>
       <b>Satın Alınmış Arsa</b>
     </td>
     <td width="50%" align="center">
-      <img src="../docs/screenshots/tiles.png" alt="Property Cards"/><br/>
+      <img src="docs/screenshots/tiles.png" alt="Property Cards"/><br/>
       <b>Sağ Panel Tapu Detayları</b>
     </td>
   </tr>
