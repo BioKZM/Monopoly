@@ -18,7 +18,7 @@
     </td>
     <td width="50%" align="center">
       <img src="docs/screenshots/tiles.png" alt="Property Cards"/><br/>
-      <b>Tile Details on Right Panel</b>
+      <b>Tile Details on Right Panel (Interactable)</b>
     </td>
   </tr>
 </table>
