@@ -1,3 +1,4 @@
+[ [Türkçe](README.md) ] | [ EN ]
 # 🎲 Monopoly Multiplayer (Unity & Mirror Networking)
 
 ![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black?style=for-the-badge&logo=unity)
